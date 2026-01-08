@@ -9,13 +9,18 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY)
     },
-    server: {
-      port: 3000
-    },
     build: {
       outDir: 'dist',
       sourcemap: false,
-      minify: 'esbuild'
+      minify: 'esbuild',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'recharts'],
+            genai: ['@google/genai']
+          }
+        }
+      }
     }
   };
 });
