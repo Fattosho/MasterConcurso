@@ -1,0 +1,9 @@
+{
+  "name": "Copy of ConcursoMaster Beta Edition",
+  "description": "Plataforma de alta performance para concurseiros, com design dark neon e integração total com Gemini AI.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
