@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, Banca, Materia, Nivel, MnemonicResponse, Flashcard, StudyPlanDay } from "../types";
 
+// Fix: Always use new GoogleGenAI({apiKey: process.env.API_KEY}) directly as per the official SDK guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Nivel): Promise<Question> => {

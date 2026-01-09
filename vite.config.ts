@@ -1,10 +1,9 @@
-
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import process from 'node:process';
 
 export default defineConfig(({ mode }) => {
-  // Fix: Cast process to any to access Node's cwd method in the configuration script
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  const env = loadEnv(mode, process.cwd(), '');
   return {
     plugins: [react()],
     define: {
@@ -13,7 +12,15 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: false,
-      minify: 'esbuild'
+      minify: 'esbuild',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'recharts'],
+            genai: ['@google/genai']
+          }
+        }
+      }
     }
   };
 });
