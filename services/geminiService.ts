@@ -1,12 +1,17 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, Banca, Materia, Nivel, MnemonicResponse, Flashcard, StudyPlanDay } from "../types";
 
-// Função para obter a instância da IA de forma segura
+// Função helper para obter a chave com segurança
+const getApiKey = () => {
+  const key = process?.env?.API_KEY;
+  if (!key || key === 'undefined') return "";
+  return key;
+};
+
 const getAI = () => {
-  const apiKey = process?.env?.API_KEY;
-  if (!apiKey || apiKey === 'undefined') {
-    throw new Error("API_KEY ausente. Verifique as configurações do Netlify.");
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("API_KEY não encontrada nas variáveis de ambiente.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -68,8 +73,8 @@ export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]>
         items: {
           type: Type.OBJECT,
           properties: {
-            front: { type: Type.STRING, description: "Pergunta ou termo" },
-            back: { type: Type.STRING, description: "Resposta curta ou definição" },
+            front: { type: Type.STRING },
+            back: { type: Type.STRING },
             subject: { type: Type.STRING }
           },
           required: ["front", "back", "subject"]
