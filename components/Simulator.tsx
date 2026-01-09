@@ -77,6 +77,11 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
   };
 
   const startSession = async () => {
+    if (!process.env.API_KEY) {
+      alert("ERRO: API_KEY não configurada. Adicione a variável de ambiente no Netlify.");
+      return;
+    }
+
     setLoading(true);
     setIsGameOver(false);
     setQuestionsAnsweredInSession(0);
@@ -86,14 +91,13 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
     sessionStartTimeRef.current = Date.now();
 
     try {
-      console.log(`Gerando questão para banca ${banca}, matéria ${materia}...`);
       const q = await generateQuestion(banca, materia, nivel);
       setCurrentQuestion(q);
       setIsSessionActive(true);
       prefetchNext(banca, materia, nivel);
     } catch (e) {
-      console.error("Erro na geração da AI:", e);
-      alert("ERRO AO CONECTAR COM A IA. Verifique sua chave API e tente novamente.");
+      console.error("Erro AI:", e);
+      alert("Falha ao conectar com a IA. Verifique se sua chave API é válida.");
     } finally {
       setLoading(false);
     }
@@ -105,9 +109,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
     try {
       const q = await generateQuestion(currentBanca, currentMateria, currentNivel);
       setNextQuestion(q);
-    } catch (e) {
-      console.error("Erro no prefetch", e);
-    } finally {
+    } catch (e) {} finally {
       setIsPrefetching(false);
     }
   };
@@ -146,8 +148,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
         setCurrentQuestion(q);
         prefetchNext(banca, materia, nivel);
       } catch (e) {
-        console.error("Erro ao carregar próxima questão:", e);
-        alert("Erro ao carregar questão.");
+        alert("Erro ao carregar próxima questão.");
       } finally {
         setLoading(false);
       }
@@ -193,21 +194,17 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
         <div className="flex flex-col items-center justify-center py-32 space-y-16 animate-in fade-in duration-700">
            <div className="relative w-64 h-64">
               <div className="absolute inset-0 bg-blue-500/10 rounded-full animate-cyber-pulse"></div>
-              <div className="absolute inset-4 border border-blue-500/20 rounded-full animate-[spin_8s_linear_infinite]"></div>
-              <div className="absolute inset-10 border border-blue-500/10 rounded-full animate-[spin_12s_linear_infinite_reverse]"></div>
               <div className="absolute inset-0 border-t-2 border-blue-500/40 rounded-full animate-[spin_3s_linear_infinite]"></div>
-              
               <div className="absolute inset-0 flex items-center justify-center animate-float">
                  <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-blue-400 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.5)] border border-white/20 relative overflow-hidden group">
                     <span className="text-5xl drop-shadow-lg relative z-10">🧠</span>
-                    <div className="absolute inset-0 bg-white/20 animate-scan"></div>
                  </div>
               </div>
            </div>
            <div className="text-center space-y-4">
               <p className="text-[13px] font-black text-blue-400 uppercase tracking-[0.8em] animate-pulse">SINTETIZANDO QUESTÕES</p>
               <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest bg-zinc-900/50 px-6 py-2 rounded-full border border-white/5">
-                 Analisando padrão neural da banca {banca}
+                 Banca {banca} - {materia}
               </p>
            </div>
         </div>
@@ -251,27 +248,21 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
 
       {isGameOver && (
         <div className="glass-card p-16 rounded-[4rem] text-center border-blue-500/20 animate-in zoom-in duration-700 shadow-2xl space-y-12 backdrop-blur-sm">
-           <div className="space-y-4">
-              <div className="text-7xl mb-8 animate-float">🎯</div>
-              <h3 className="text-5xl font-black text-white uppercase tracking-tighter">SIMULADO FINALIZADO</h3>
-              <p className="text-zinc-500 font-bold text-[10px] uppercase tracking-[0.6em]">Processamento de Resultado Concluído</p>
-           </div>
-
+           <h3 className="text-5xl font-black text-white uppercase tracking-tighter">SIMULADO FINALIZADO</h3>
            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="bg-zinc-900/40 p-10 rounded-[2.5rem] border border-zinc-800 shadow-inner group hover:border-zinc-600 transition-colors">
+              <div className="bg-zinc-900/40 p-10 rounded-[2.5rem] border border-zinc-800 shadow-inner group">
                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">TOTAL</p>
-                 <p className="text-5xl font-black text-white group-hover:scale-110 transition-transform">{questionsAnsweredInSession}</p>
+                 <p className="text-5xl font-black text-white">{questionsAnsweredInSession}</p>
               </div>
-              <div className="bg-emerald-500/5 p-10 rounded-[2.5rem] border border-emerald-500/20 shadow-inner group hover:border-emerald-500/40 transition-colors">
+              <div className="bg-emerald-500/5 p-10 rounded-[2.5rem] border border-emerald-500/20 shadow-inner group">
                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">ACERTOS</p>
-                 <p className="text-5xl font-black text-emerald-400 group-hover:scale-110 transition-transform">{correctInSession}</p>
+                 <p className="text-5xl font-black text-emerald-400">{correctInSession}</p>
               </div>
-              <div className="bg-blue-600/5 p-10 rounded-[2.5rem] border border-blue-600/20 shadow-inner group hover:border-blue-600/40 transition-colors">
+              <div className="bg-blue-600/5 p-10 rounded-[2.5rem] border border-blue-600/20 shadow-inner group">
                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-4">VELOCIDADE</p>
-                 <p className="text-5xl font-black text-blue-400 group-hover:scale-110 transition-transform">{avgTime.toFixed(1)}s</p>
+                 <p className="text-5xl font-black text-blue-400">{avgTime.toFixed(1)}s</p>
               </div>
            </div>
-
            <button onClick={() => setIsGameOver(false)} className="neon-button-blue px-20 py-7 rounded-2xl font-black text-[12px] uppercase tracking-[0.3em] btn-click-effect">REINICIAR TESTE</button>
         </div>
       )}
@@ -281,7 +272,6 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
            <div className="flex flex-wrap gap-4 text-[9px] font-black uppercase tracking-widest">
               <span className="bg-zinc-900 border border-zinc-800 px-6 py-2.5 rounded-full text-zinc-400">{currentQuestion.banca}</span>
               <span className="bg-blue-600/10 border border-blue-500/20 px-6 py-2.5 rounded-full text-blue-500">{currentQuestion.materia}</span>
-              <span className="bg-zinc-900/80 border border-zinc-800 px-6 py-2.5 rounded-full text-zinc-500">QUESTÃO {questionsAnsweredInSession + 1}</span>
            </div>
 
            <div className="space-y-10">
@@ -296,7 +286,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
                   let styleClass = "bg-zinc-900/40 border-zinc-800/60 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/60";
                   
                   if (showExplanation) {
-                    if (isCorrect) styleClass = "bg-emerald-500/10 border-emerald-500/60 text-emerald-400 font-bold shadow-[0_0_30px_rgba(16,185,129,0.1)]";
+                    if (isCorrect) styleClass = "bg-emerald-500/10 border-emerald-500/60 text-emerald-400 font-bold";
                     else if (isSelected) styleClass = "bg-rose-500/10 border-rose-500/60 text-rose-400 opacity-80";
                     else styleClass = "opacity-20 blur-[1px]";
                   }
@@ -308,14 +298,14 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
                       disabled={showExplanation} 
                       className={`w-full p-6 md:p-8 rounded-[2rem] border transition-all flex gap-6 text-left group btn-click-effect relative overflow-hidden items-start ${styleClass}`}
                     >
-                      <span className={`w-10 h-10 md:w-12 md:h-12 flex-shrink-0 flex items-center justify-center rounded-2xl border text-[12px] font-black transition-all mt-0.5 ${
+                      <span className={`w-10 h-10 md:w-12 md:h-12 flex-shrink-0 flex items-center justify-center rounded-2xl border text-[12px] font-black ${
                         showExplanation && isCorrect 
-                        ? 'bg-emerald-500 border-emerald-500 text-black shadow-lg' 
+                        ? 'bg-emerald-500 border-emerald-500 text-black' 
                         : isSelected && !isCorrect ? 'bg-rose-500 border-rose-500 text-white' : 'border-zinc-800 bg-zinc-950 text-zinc-600'
                       }`}>
                         {opt.id}
                       </span>
-                      <span className="text-sm md:text-lg font-medium flex-1 leading-relaxed text-pretty py-0.5">
+                      <span className="text-sm md:text-lg font-medium flex-1 leading-relaxed py-0.5">
                         {opt.text}
                       </span>
                     </button>
@@ -330,20 +320,12 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
                  <div className="w-1.5 h-8 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
                  <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.4em]">RESPOSTA COMENTADA</h4>
                </div>
-               
-               <p className="text-zinc-400 text-base md:text-lg leading-relaxed italic border-l-2 border-zinc-900 pl-8 md:pl-12 text-pretty">
+               <p className="text-zinc-400 text-base md:text-lg leading-relaxed italic border-l-2 border-zinc-900 pl-8 md:pl-12">
                  {currentQuestion.explanation}
                </p>
-               
                <div className="pt-8 flex justify-end">
-                  <button 
-                    onClick={nextOrFinish} 
-                    className="neon-button-blue px-12 py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] flex items-center gap-5"
-                  >
-                    {isPrefetching && !nextQuestion ? 'Gerando Próxima...' : questionsAnsweredInSession >= questionCount ? 'Finalizar' : 'Próxima'} 
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
+                  <button onClick={nextOrFinish} className="neon-button-blue px-12 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center gap-5">
+                    {questionsAnsweredInSession >= questionCount ? 'Finalizar' : 'Próxima'} 
                   </button>
                </div>
              </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -13,6 +12,7 @@ import { getLatestNews, editStudyImage, generateMindMapFromDescription, transcri
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [performance, setPerformance] = useState<UserPerformance>(() => {
     try {
       const saved = localStorage.getItem('user_performance');
@@ -29,6 +29,17 @@ const App: React.FC = () => {
     } catch (e) { console.error(e); }
     return { totalAnswered: 0, correctAnswers: 0, subjectStats: {}, xp: 0, level: 1 };
   });
+
+  useEffect(() => {
+    // Verifica se a chave foi injetada pelo build ou se existe no processo
+    const key = process.env.API_KEY;
+    if (!key || key === 'undefined' || key === '') {
+      setApiKeyMissing(true);
+      console.warn("ALERTA: API_KEY não detectada. O app funcionará em modo limitado.");
+    } else {
+      setApiKeyMissing(false);
+    }
+  }, []);
 
   const [newsQuery, setNewsQuery] = useState('Concursos abertos Brasil 2025');
   const [newsResult, setNewsResult] = useState<{text: string, sources: any[]} | null>(null);
@@ -71,6 +82,7 @@ const App: React.FC = () => {
   };
 
   const handleSearchNews = async () => {
+    if (apiKeyMissing) { alert("Configure a API_KEY no Netlify primeiro!"); return; }
     setNewsLoading(true);
     try {
       const result = await getLatestNews(newsQuery);
@@ -89,7 +101,7 @@ const App: React.FC = () => {
   };
 
   const handleMindMapAction = async () => {
-    if (!mindMapMode) return;
+    if (!mindMapMode || apiKeyMissing) return;
     setIsProcessingMindMap(true);
     try {
       if (mindMapMode === 'enhance') {
@@ -141,9 +153,14 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-black text-zinc-100 selection:bg-blue-500/30 overflow-hidden relative">
-      <div className="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse"></div>
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-400/5 rounded-full blur-[120px] pointer-events-none animate-pulse [animation-delay:3s]"></div>
+      {apiKeyMissing && (
+        <div className="fixed top-0 left-0 right-0 bg-rose-600 text-white text-[10px] font-black uppercase py-2 px-4 z-[100] flex justify-center items-center gap-4 animate-in slide-in-from-top duration-500">
+           <span>⚠️ API_KEY NÃO DETECTADA. CONFIGURE NO PAINEL DA NETLIFY E DISPARE UM NOVO DEPLOY.</span>
+        </div>
+      )}
 
+      <div className="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse"></div>
+      
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className="flex-1 p-4 md:p-10 overflow-y-auto w-full relative z-10 scrollbar-hide">
@@ -160,9 +177,8 @@ const App: React.FC = () => {
             <div className="page-transition space-y-10">
               <header className="border-l-4 border-blue-400 pl-8">
                 <h2 className="text-4xl font-black text-white uppercase tracking-tighter">RADAR DE <span className="text-blue-400">EDITAIS</span></h2>
-                <p className="text-zinc-500 font-bold text-xs mt-2 uppercase tracking-widest">Sincronização global de editais abertos e previstos.</p>
               </header>
-              <div className="flex flex-col sm:flex-row gap-5 bg-zinc-900/40 p-4 rounded-[3rem] border border-white/5 backdrop-blur-2xl shadow-2xl">
+              <div className="flex flex-col sm:flex-row gap-5 bg-zinc-900/40 p-4 rounded-[3rem] border border-white/5 backdrop-blur-2xl">
                 <input 
                   value={newsQuery}
                   onChange={(e) => setNewsQuery(e.target.value)}
@@ -172,39 +188,35 @@ const App: React.FC = () => {
                 <button 
                   onClick={handleSearchNews} 
                   disabled={newsLoading}
-                  className="bg-blue-600 text-white px-14 py-5 rounded-[2rem] font-black text-xs uppercase hover:bg-blue-500 transition-all btn-click-effect shadow-xl shadow-blue-600/20"
+                  className="bg-blue-600 text-white px-14 py-5 rounded-[2rem] font-black text-xs uppercase hover:bg-blue-500 shadow-xl"
                 >
-                  {newsLoading ? 'VARRENDO REDE...' : 'PESQUISAR AGORA'}
+                  {newsLoading ? 'VARRENDO...' : 'PESQUISAR'}
                 </button>
               </div>
 
-              {newsLoading ? (
-                <div className="flex flex-col items-center py-32 space-y-12 animate-in fade-in duration-700">
-                   <div className="relative w-40 h-40">
-                      <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
-                      <div className="absolute inset-0 border-t-4 border-blue-500 rounded-full animate-spin"></div>
-                      <div className="absolute inset-[15%] border-b-4 border-blue-400/30 rounded-full animate-[spin_2s_linear_infinite_reverse]"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                         <span className="text-5xl animate-float">🛰️</span>
-                      </div>
-                   </div>
-                   <div className="text-center">
-                      <p className="text-[12px] font-black text-blue-400 uppercase tracking-[0.6em] animate-pulse">Interceptando Servidores</p>
-                      <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-2">Filtrando editais via Google Search Grounding...</p>
-                   </div>
-                </div>
-              ) : newsResult && (
-                <div className="glass-card p-10 md:p-16 rounded-[4rem] border-blue-500/10 shadow-3xl backdrop-blur-xl animate-in fade-in zoom-in duration-700">
-                  <div className="prose prose-invert prose-blue max-w-none text-zinc-300 leading-relaxed text-base font-sans">
+              {newsResult && (
+                <div className="glass-card p-10 md:p-16 rounded-[4rem] border-blue-500/10 shadow-3xl animate-in fade-in duration-700">
+                  <div className="prose prose-invert max-w-none text-zinc-300">
                     {newsResult.text}
                   </div>
-                  <div className="mt-12 flex flex-wrap gap-4 pt-10 border-t border-zinc-900">
-                    {newsResult.sources.map((src, i) => (
-                      <a key={i} href={src.web?.uri || '#'} target="_blank" className="text-[10px] font-black bg-zinc-900 border border-white/5 px-6 py-3 rounded-2xl text-zinc-400 hover:text-blue-400 hover:border-blue-500/50 transition-all uppercase tracking-widest">
-                        {src.web?.title || 'Relatório Oficial'}
-                      </a>
-                    ))}
-                  </div>
+                  {newsResult.sources.length > 0 && (
+                    <div className="mt-8 pt-8 border-t border-zinc-900">
+                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Fontes:</p>
+                      <div className="flex flex-wrap gap-3">
+                        {newsResult.sources.map((source: any, idx: number) => source.web && (
+                          <a 
+                            key={idx} 
+                            href={source.web.uri} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-bold text-blue-400 hover:border-blue-500 transition-all"
+                          >
+                            {source.web.title || source.web.uri}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -214,106 +226,57 @@ const App: React.FC = () => {
             <div className="page-transition space-y-12">
               <header className="border-l-4 border-blue-400 pl-8">
                 <h2 className="text-4xl font-black text-white uppercase tracking-tighter">NÚCLEO <span className="text-blue-400">VISUAL</span></h2>
-                <p className="text-zinc-500 font-bold text-xs mt-2 uppercase tracking-widest">Conversão de ideias em arquiteturas de conhecimento.</p>
               </header>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                {[
-                  { id: 'enhance', label: 'OTIMIZAR FOTO', icon: '📸' },
-                  { id: 'text', label: 'CRIAR POR TEXTO', icon: '✍️' },
-                  { id: 'voice', label: 'CRIAR POR VOZ', icon: '🎙️' }
-                ].map((m) => (
-                   <button 
-                     key={m.id}
-                     onClick={() => { setMindMapMode(m.id as any); setSelectedImage(null); }} 
-                     className={`group p-10 rounded-[3rem] border transition-all flex flex-col items-center gap-6 btn-click-effect shadow-xl ${mindMapMode === m.id ? 'bg-blue-600 border-blue-400 scale-[1.05] z-10' : 'bg-zinc-900/50 border-white/5 backdrop-blur-xl hover:border-blue-400/30'}`}
-                   >
-                     <div className="text-6xl transition-transform group-hover:scale-125 duration-700">
-                        {m.icon}
-                     </div>
-                     <span className={`text-[12px] font-black uppercase tracking-[0.3em] ${mindMapMode === m.id ? 'text-white' : 'text-zinc-500'}`}>
-                        {m.label}
-                     </span>
-                   </button>
-                ))}
+                <button onClick={() => setMindMapMode('enhance')} className={`p-10 rounded-[3rem] border transition-all flex flex-col items-center gap-6 ${mindMapMode === 'enhance' ? 'bg-blue-600' : 'bg-zinc-900/50'}`}>
+                   <span className="text-4xl">📸</span>
+                   <span className="text-[10px] font-black">OTIMIZAR FOTO</span>
+                </button>
+                <button onClick={() => setMindMapMode('text')} className={`p-10 rounded-[3rem] border transition-all flex flex-col items-center gap-6 ${mindMapMode === 'text' ? 'bg-blue-600' : 'bg-zinc-900/50'}`}>
+                   <span className="text-4xl">✍️</span>
+                   <span className="text-[10px] font-black">CRIAR POR TEXTO</span>
+                </button>
+                <button onClick={() => setMindMapMode('voice')} className={`p-10 rounded-[3rem] border transition-all flex flex-col items-center gap-6 ${mindMapMode === 'voice' ? 'bg-blue-600' : 'bg-zinc-900/50'}`}>
+                   <span className="text-4xl">🎙️</span>
+                   <span className="text-[10px] font-black">CRIAR POR VOZ</span>
+                </button>
               </div>
 
               {mindMapMode && (
-                <div className="max-w-4xl mx-auto glass-card p-12 rounded-[4rem] border-white/5 space-y-10 animate-in slide-in-from-top-12 duration-700 shadow-3xl">
+                <div className="max-w-4xl mx-auto glass-card p-12 rounded-[4rem] border-white/5 space-y-10 animate-in slide-in-from-top-12 duration-700">
                   {isProcessingMindMap ? (
-                    <div className="flex flex-col items-center py-20 space-y-10">
-                       <div className="relative w-32 h-32">
-                          <div className="absolute inset-0 bg-blue-500/20 blur-2xl animate-cyber-pulse"></div>
-                          <div className="absolute inset-0 border-2 border-blue-500/30 rounded-3xl animate-float"></div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                             <div className="w-4 h-16 bg-blue-500/40 animate-scan"></div>
-                          </div>
-                          <span className="absolute inset-0 flex items-center justify-center text-4xl">💎</span>
-                       </div>
-                       <div className="text-center">
-                          <p className="text-[11px] font-black text-blue-400 uppercase tracking-[0.5em] animate-pulse">RENDERIZAÇÃO COGNITIVA</p>
-                          <p className="text-[9px] text-zinc-600 font-bold uppercase mt-2">Extraindo eixos lógicos via Gemini 2.5 Flash...</p>
-                       </div>
+                    <div className="flex flex-col items-center py-20 text-center">
+                       <div className="w-16 h-16 border-t-2 border-blue-500 rounded-full animate-spin mb-4"></div>
+                       <p className="text-[10px] font-black text-blue-400">PROCESSANDO REDE NEURAL...</p>
                     </div>
                   ) : (
                     <>
                       {mindMapMode === 'enhance' && (
                         <div className="space-y-8">
                           <input type="file" id="map-upload" hidden onChange={handleImageUpload} />
-                          <label htmlFor="map-upload" className="block w-full text-center border-4 border-dashed border-zinc-900 p-24 rounded-[3.5rem] cursor-pointer hover:border-blue-400 transition-all bg-zinc-950 group relative overflow-hidden">
-                             <div className="absolute inset-0 bg-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                             {selectedImage ? <img src={selectedImage} className="h-40 mx-auto rounded-[2rem] shadow-3xl" /> : (
-                               <div className="space-y-6 relative z-10">
-                                 <div className="text-7xl opacity-30 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700">📥</div>
-                                 <span className="text-[12px] font-black text-zinc-500 uppercase tracking-[0.5em] block">SOLTAR ARQUIVO</span>
-                               </div>
-                             )}
+                          <label htmlFor="map-upload" className="block w-full text-center border-4 border-dashed border-zinc-900 p-24 rounded-[3.5rem] cursor-pointer hover:border-blue-400">
+                             {selectedImage ? <img src={selectedImage} className="h-40 mx-auto rounded-2xl" /> : "📥 SOLTAR ARQUIVO"}
                           </label>
-                          <textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} placeholder="Comandos de ajuste (Ex: 'Destaque prazos em vermelho', 'Foque no centro')..." className="w-full bg-zinc-900/50 p-8 rounded-[2.5rem] border border-zinc-800 focus:border-blue-400 outline-none text-sm h-32 resize-none transition-all font-medium" />
-                          <button onClick={handleMindMapAction} disabled={!selectedImage || isProcessingMindMap} className="w-full bg-blue-600 text-white py-7 rounded-[2rem] font-black text-xs uppercase shadow-2xl btn-click-effect hover:bg-blue-500 transition-all disabled:opacity-30">
-                            INICIAR PROCESSAMENTO
-                          </button>
+                          <button onClick={handleMindMapAction} className="w-full bg-blue-600 text-white py-6 rounded-2xl font-black text-xs uppercase">INICIAR</button>
                         </div>
                       )}
-
                       {mindMapMode === 'text' && (
                         <div className="space-y-8">
-                          <textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} placeholder="Descreva o fluxo lógico ou cole o resumo da matéria..." className="w-full bg-zinc-900/50 p-10 rounded-[3rem] border border-zinc-800 focus:border-blue-400 outline-none text-base h-72 transition-all font-medium" />
-                          <button onClick={handleMindMapAction} disabled={!imagePrompt || isProcessingMindMap} className="w-full bg-blue-600 text-white py-7 rounded-[2rem] font-black text-xs uppercase shadow-2xl btn-click-effect hover:bg-blue-500 transition-all">
-                            GERAR MAPA DE ALTA DEFINIÇÃO
-                          </button>
+                          <textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} placeholder="Descreva o conteúdo..." className="w-full bg-zinc-900/50 p-10 rounded-[3rem] outline-none text-base h-40" />
+                          <button onClick={handleMindMapAction} className="w-full bg-blue-600 text-white py-6 rounded-2xl font-black text-xs uppercase">GERAR MAPA</button>
                         </div>
                       )}
-
                       {mindMapMode === 'voice' && (
                         <div className="flex flex-col items-center justify-center py-20 gap-16">
-                          <div className="relative">
-                            {isRecording && <div className="absolute inset-0 bg-blue-400/20 rounded-full animate-[ping_2s_infinite]"></div>}
-                            <button onClick={isRecording ? stopRecording : startRecording} className={`w-48 h-48 rounded-[3.5rem] flex items-center justify-center transition-all shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative z-10 ${isRecording ? 'bg-rose-600' : 'bg-blue-600 hover:bg-blue-500 hover:rotate-12 hover:scale-110'}`}>
-                              {isRecording ? <div className="w-16 h-16 bg-white rounded-2xl animate-pulse"></div> : <span className="text-7xl">🎙️</span>}
-                            </button>
-                          </div>
-                          <div className="text-center space-y-4">
-                            <p className="text-[12px] font-black uppercase text-zinc-500 tracking-[0.6em]">{isRecording ? 'ANÁLISE ACÚSTICA ATIVA' : 'SISTEMA DE ESCUTA PRONTO'}</p>
-                            <p className="text-sm text-zinc-400 font-bold uppercase">{isRecording ? 'Transcrevendo em tempo real...' : 'Toque no sensor para começar'}</p>
-                          </div>
+                           <button onClick={isRecording ? stopRecording : startRecording} className={`w-32 h-32 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-rose-600 animate-pulse' : 'bg-blue-600'}`}>
+                              {isRecording ? "⏹️" : "🎙️"}
+                           </button>
+                           <p className="text-[10px] font-black uppercase text-zinc-500">{isRecording ? 'ESCUTANDO...' : 'TOQUE PARA FALAR'}</p>
                         </div>
                       )}
                     </>
                   )}
-                </div>
-              )}
-
-              {selectedImage && !isProcessingMindMap && (
-                <div className="animate-in zoom-in duration-1000 glass-card rounded-[4rem] border-blue-500/10 p-16 flex flex-col items-center gap-12 shadow-3xl">
-                  <div className="relative group overflow-hidden rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.6)]">
-                    <img src={selectedImage} className="max-w-full max-h-[800px] transition-transform duration-1000 group-hover:scale-[1.05]" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  </div>
-                  <a href={selectedImage} download="mapa-concurso-master.png" className="bg-blue-600 text-white px-20 py-7 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition-all btn-click-effect shadow-2xl shadow-blue-600/30 flex items-center gap-4">
-                    <span>BAIXAR ARQUIVO DE ELITE</span>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  </a>
                 </div>
               )}
             </div>

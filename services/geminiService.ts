@@ -1,11 +1,14 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, Banca, Materia, Nivel, MnemonicResponse, Flashcard, StudyPlanDay } from "../types";
 
-// Fix: Always use new GoogleGenAI({apiKey: process.env.API_KEY}) directly as per the official SDK guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Função para obter a instância da IA de forma segura
+const getAI = () => {
+  // Always use process.env.API_KEY directly as per guidelines
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
 
 export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Nivel): Promise<Question> => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Gere uma questão de múltipla escolha inédita para concursos no Brasil.
@@ -48,6 +51,7 @@ export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Ni
 };
 
 export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]> => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Gere 5 flashcards de revisão rápida para a matéria "${materia}" de concursos públicos brasileiros.
@@ -73,6 +77,7 @@ export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]>
 };
 
 export const generateStudyPlan = async (materia: Materia, horasDisponiveis: number): Promise<StudyPlanDay[]> => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Crie um cronograma de estudo intensivo para a matéria "${materia}" considerando ${horasDisponiveis} horas de estudo.
@@ -97,6 +102,7 @@ export const generateStudyPlan = async (materia: Materia, horasDisponiveis: numb
 };
 
 export const generateEssayTheme = async (banca: Banca): Promise<string> => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Gere um tema de redação inédito e atualizado, típico da banca "${banca}". Retorne apenas o título/frase temática.`,
@@ -105,6 +111,7 @@ export const generateEssayTheme = async (banca: Banca): Promise<string> => {
 };
 
 export const getEssayTips = async (theme: string, banca: Banca) => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Dê 4 dicas simples para o tema: "${theme}" na banca ${banca}. JSON puro.`,
@@ -120,6 +127,7 @@ export const getEssayTips = async (theme: string, banca: Banca) => {
 };
 
 export const evaluateEssayImage = async (base64Image: string, theme: string, banca: Banca) => {
+  const ai = getAI();
   const mimeTypeMatch = base64Image.match(/^data:(image\/[a-z]+);base64,/);
   const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
   const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
@@ -151,6 +159,7 @@ export const evaluateEssayImage = async (base64Image: string, theme: string, ban
 };
 
 export const generateMnemonic = async (materia: Materia): Promise<MnemonicResponse> => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Crie um mnemônico para a matéria "${materia}". JSON puro.`,
@@ -171,6 +180,7 @@ export const generateMnemonic = async (materia: Materia): Promise<MnemonicRespon
 };
 
 export const getLatestNews = async (query: string) => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Notícias recentes sobre: ${query}. Use Markdown.`,
@@ -183,6 +193,7 @@ export const getLatestNews = async (query: string) => {
 };
 
 export const editStudyImage = async (base64Image: string, prompt: string) => {
+  const ai = getAI();
   const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
@@ -198,6 +209,7 @@ export const editStudyImage = async (base64Image: string, prompt: string) => {
 };
 
 export const generateMindMapFromDescription = async (prompt: string): Promise<string | null> => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
@@ -209,6 +221,7 @@ export const generateMindMapFromDescription = async (prompt: string): Promise<st
 };
 
 export const transcribeAndSummarizeAudio = async (base64Audio: string): Promise<string> => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {

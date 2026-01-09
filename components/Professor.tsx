@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 
@@ -16,8 +15,6 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
   const sessionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -26,8 +23,11 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
 
   const decode = (base64: string) => {
     const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
     return bytes;
   };
 
@@ -46,7 +46,10 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
 
   const encode = (bytes: Uint8Array) => {
     let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
     return btoa(binary);
   };
 
@@ -62,6 +65,8 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
   const startLiveSession = async () => {
     setMode('audio');
     try {
+      // Create a fresh instance right before making an API call to ensure current key usage
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -126,6 +131,8 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
     setInputText('');
     setIsTyping(true);
     try {
+      // Create a fresh instance right before making an API call to ensure current key usage
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: userMsg,
