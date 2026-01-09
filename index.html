@@ -5,6 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ConcursoMaster AI | Plataforma de Estudos</title>
+    <script>
+        // SHIM GLOBAL: Evita que o app quebre por falta do objeto 'process'
+        window.process = window.process || { env: {} };
+        // Garante que a chave seja lida mesmo se o build não a injetar perfeitamente
+        window.process.env = window.process.env || {};
+    </script>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

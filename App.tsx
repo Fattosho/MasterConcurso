@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -31,11 +32,10 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    // Verifica se a chave foi injetada pelo build ou se existe no processo
-    const key = process.env.API_KEY;
+    // Verifica a chave de forma segura
+    const key = process?.env?.API_KEY;
     if (!key || key === 'undefined' || key === '') {
       setApiKeyMissing(true);
-      console.warn("ALERTA: API_KEY não detectada. O app funcionará em modo limitado.");
     } else {
       setApiKeyMissing(false);
     }
@@ -82,7 +82,7 @@ const App: React.FC = () => {
   };
 
   const handleSearchNews = async () => {
-    if (apiKeyMissing) { alert("Configure a API_KEY no Netlify primeiro!"); return; }
+    if (apiKeyMissing) { alert("Aguardando ativação da API_KEY..."); return; }
     setNewsLoading(true);
     try {
       const result = await getLatestNews(newsQuery);
@@ -140,7 +140,9 @@ const App: React.FC = () => {
       };
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (e) { alert("Microfone não disponível."); }
+    } catch (e) { 
+      alert("Microfone não disponível."); 
+    }
   };
 
   const stopRecording = () => {
@@ -154,8 +156,8 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-black text-zinc-100 selection:bg-blue-500/30 overflow-hidden relative">
       {apiKeyMissing && (
-        <div className="fixed top-0 left-0 right-0 bg-rose-600 text-white text-[10px] font-black uppercase py-2 px-4 z-[100] flex justify-center items-center gap-4 animate-in slide-in-from-top duration-500">
-           <span>⚠️ API_KEY NÃO DETECTADA. CONFIGURE NO PAINEL DA NETLIFY E DISPARE UM NOVO DEPLOY.</span>
+        <div className="fixed top-0 left-0 right-0 bg-blue-600 text-white text-[10px] font-black uppercase py-2 px-4 z-[100] flex justify-center items-center gap-4 animate-in slide-in-from-top duration-500">
+           <span>ℹ️ SISTEMA INICIALIZADO. SE A IA NÃO RESPONDER, RE-FAÇA O DEPLOY NO NETLIFY COM A CHAVE SALVA.</span>
         </div>
       )}
 

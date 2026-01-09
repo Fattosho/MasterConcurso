@@ -1,10 +1,14 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, Banca, Materia, Nivel, MnemonicResponse, Flashcard, StudyPlanDay } from "../types";
 
 // Função para obter a instância da IA de forma segura
 const getAI = () => {
-  // Always use process.env.API_KEY directly as per guidelines
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process?.env?.API_KEY;
+  if (!apiKey || apiKey === 'undefined') {
+    throw new Error("API_KEY ausente. Verifique as configurações do Netlify.");
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
 export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Nivel): Promise<Question> => {
