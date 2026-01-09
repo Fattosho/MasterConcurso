@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 
-interface ProfessorProps { isFloat?: boolean; }
+interface ProfessorProps { isFloat?: boolean; theme: 'dark' | 'light'; }
 
-const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
+const Professor: React.FC<ProfessorProps> = ({ isFloat = false, theme }) => {
   const [mode, setMode] = useState<'none' | 'audio' | 'text'>('none');
   const [messages, setMessages] = useState<{ role: 'user' | 'system'; text: string }[]>([]);
   const [inputText, setInputText] = useState('');
@@ -65,7 +65,6 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
   const startLiveSession = async () => {
     setMode('audio');
     try {
-      // Create a fresh instance right before making an API call to ensure current key usage
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -131,13 +130,12 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
     setInputText('');
     setIsTyping(true);
     try {
-      // Create a fresh instance right before making an API call to ensure current key usage
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: userMsg,
         config: { 
-          systemInstruction: 'Você é um Mentor Técnico para concursos. Forneça respostas curtas, diretas e objetivas. Use listas (bullets) para organizar conceitos. Evite formatações complexas de markdown, prefira texto limpo e parágrafos curtos.' 
+          systemInstruction: 'Você é um Mentor Técnico para concursos. Forneça respostas curtas, diretas e objetivas. Use listas (bullets) para organizar conceitos.' 
         }
       });
       setMessages(prev => [...prev, { role: 'system', text: response.text || '' }]);
@@ -149,39 +147,41 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
   };
 
   return (
-    <div className={`flex flex-col h-full bg-zinc-950/50 ${isFloat ? 'w-full' : 'max-w-4xl mx-auto min-h-[70vh]'}`}>
+    <div className={`flex flex-col h-full ${isFloat ? 'w-full' : 'max-w-5xl mx-auto min-h-[75vh]'}`}>
       {mode === 'none' && (
-        <div className={`flex flex-col items-center justify-center h-full p-10 space-y-10 ${isFloat ? 'py-20' : ''}`}>
-          {!isFloat && (
-            <div className="text-center space-y-3">
-              <h2 className="text-4xl font-black text-white tracking-tighter uppercase">CONSULTORIA <span className="text-blue-500">AI</span></h2>
-              <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.6em]">Mentor Técnico Privado</p>
-            </div>
-          )}
-          <div className={`grid gap-6 w-full ${isFloat ? 'grid-cols-1' : 'sm:grid-cols-2 max-w-2xl'}`}>
+        <div className={`flex flex-col items-center justify-center h-full p-6 space-y-12`}>
+          <div className="text-center space-y-3">
+             <h2 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">CONSULTORIA <span className="text-blue-600">AI</span></h2>
+             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em]">Mentor Técnico Especialista</p>
+          </div>
+          <div className={`grid gap-8 w-full max-w-3xl ${isFloat ? 'grid-cols-1' : 'sm:grid-cols-2'}`}>
             <button 
               onClick={startLiveSession}
-              className="flex items-center gap-6 p-10 bg-zinc-900/50 border border-zinc-800 rounded-[2rem] hover:border-blue-500/50 hover:bg-zinc-800/80 transition-all group btn-click-effect shadow-xl"
+              className={`flex flex-col items-center gap-6 p-12 border rounded-[3rem] transition-all group btn-click-effect shadow-xl ${
+                theme === 'dark' ? 'bg-zinc-900/40 border-white/5 hover:border-blue-500/50' : 'bg-white border-slate-200 hover:border-blue-400'
+              }`}
             >
-              <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ring-1 ring-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.2)]">
-                <span className="text-2xl text-blue-500">🎙️</span>
+              <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(37,99,235,0.2)]">
+                <span className="text-4xl">🎙️</span>
               </div>
-              <div className="text-left">
-                <p className="font-black text-[11px] text-white tracking-widest uppercase mb-1">Via Áudio</p>
-                <p className="text-[9px] text-zinc-500 font-bold uppercase">Sessão em Tempo Real</p>
+              <div className="text-center">
+                <p className="font-black text-xs text-white uppercase tracking-widest bg-blue-600 px-4 py-1 rounded-full mb-2">Via Áudio</p>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Tempo Real</p>
               </div>
             </button>
 
             <button 
               onClick={() => setMode('text')}
-              className="flex items-center gap-6 p-10 bg-zinc-900/50 border border-zinc-800 rounded-[2rem] hover:border-emerald-500/50 hover:bg-zinc-800/80 transition-all group btn-click-effect shadow-xl"
+              className={`flex flex-col items-center gap-6 p-12 border rounded-[3rem] transition-all group btn-click-effect shadow-xl ${
+                theme === 'dark' ? 'bg-zinc-900/40 border-white/5 hover:border-blue-500/50' : 'bg-white border-slate-200 hover:border-blue-400'
+              }`}
             >
-              <div className="w-16 h-16 bg-zinc-950 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ring-1 ring-zinc-800 shadow-xl">
-                <span className="text-2xl text-zinc-500 group-hover:text-emerald-500 transition-colors">💬</span>
+              <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(37,99,235,0.2)]">
+                <span className="text-4xl">💬</span>
               </div>
-              <div className="text-left">
-                <p className="font-black text-[11px] text-white tracking-widest uppercase mb-1">Via Chat</p>
-                <p className="text-[9px] text-zinc-500 font-bold uppercase">Texto e Listas Técnicas</p>
+              <div className="text-center">
+                <p className="font-black text-xs text-white uppercase tracking-widest bg-blue-600 px-4 py-1 rounded-full mb-2">Via Chat</p>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Texto e Listas</p>
               </div>
             </button>
           </div>
@@ -189,71 +189,64 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false }) => {
       )}
 
       {mode === 'audio' && (
-        <div className="flex flex-col items-center justify-center h-full p-10 space-y-10 animate-in zoom-in duration-500">
-          <div className="flex gap-1.5 h-16 items-center">
-            {[...Array(12)].map((_, i) => (
-              <div 
-                key={i} 
-                className="w-1.5 bg-blue-500 rounded-full animate-[pulse_1s_infinite]" 
-                style={{ height: `${20 + Math.random() * 80}%`, animationDelay: `${i * 0.08}s` }}
-              ></div>
+        <div className={`glass-card flex flex-col items-center justify-center p-12 rounded-[3.5rem] border space-y-12 animate-in zoom-in duration-500 ${theme === 'dark' ? 'border-zinc-900' : 'border-slate-200'}`}>
+          <div className="flex gap-2 h-24 items-center">
+            {[...Array(15)].map((_, i) => (
+              <div key={i} className="w-2 bg-blue-600 rounded-full animate-pulse" style={{ height: `${30 + Math.random() * 70}%`, animationDelay: `${i * 0.1}s` }}></div>
             ))}
-          </div>
-          <div className="text-center space-y-2">
-            <p className="text-[11px] font-black text-blue-500 tracking-[0.5em] uppercase animate-pulse">Mentor Ouvindo...</p>
-            <p className="text-[9px] text-zinc-600 font-bold uppercase">Pode falar sua dúvida técnica</p>
           </div>
           <button 
             onClick={stopLiveSession}
-            className="px-10 py-4 bg-zinc-900 border border-red-500/50 text-red-500 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all btn-click-effect shadow-xl"
+            className="px-12 py-5 bg-blue-900 hover:bg-blue-800 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all btn-click-effect shadow-2xl"
           >
-            ENCERRAR
+            ENCERRAR CONEXÃO
           </button>
         </div>
       )}
 
       {mode === 'text' && (
-        <div className="flex flex-col h-full bg-zinc-950/80 backdrop-blur-xl animate-in slide-in-from-bottom-8 duration-700">
-          <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide">
-            {messages.length === 0 && (
-               <div className="text-center py-10 opacity-30 italic text-sm text-zinc-500">
-                  Como posso acelerar sua aprovação hoje?
-               </div>
-            )}
+        <div className={`flex flex-col h-full rounded-[3.5rem] border overflow-hidden animate-in slide-in-from-bottom-8 duration-700 shadow-3xl ${
+          theme === 'dark' ? 'bg-zinc-950/80 border-white/5 backdrop-blur-2xl' : 'bg-white border-slate-200'
+        }`}>
+          <div className={`p-6 border-b flex items-center justify-between ${theme === 'dark' ? 'border-white/5' : 'border-slate-100'}`}>
+             <div className="flex items-center gap-4">
+               <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-600/20">💬</div>
+               <p className="text-[10px] font-black uppercase tracking-widest">Chat do Mentor</p>
+             </div>
+             <button onClick={() => setMode('none')} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-600/10 px-4 py-2 rounded-xl transition-all">Fechar</button>
+          </div>
+
+          <div className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] p-5 rounded-2xl text-[13px] leading-relaxed whitespace-pre-wrap shadow-2xl ${m.role === 'user' ? 'bg-blue-600 text-white' : 'bg-zinc-900/80 text-zinc-300 border border-zinc-800'}`}>
+                <div className={`max-w-[85%] p-6 rounded-[2rem] text-[14px] leading-relaxed whitespace-pre-wrap shadow-xl ${
+                  m.role === 'user' 
+                    ? 'bg-blue-600 text-white shadow-blue-600/10' 
+                    : theme === 'dark' ? 'bg-zinc-900 text-zinc-300 border border-white/5' : 'bg-slate-100 text-slate-800 border border-slate-200'
+                }`}>
                   {m.text}
                 </div>
               </div>
             ))}
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-2xl flex gap-1.5 items-center">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.1s]"></div>
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                </div>
-              </div>
-            )}
           </div>
 
-          <div className="p-6 bg-zinc-950/90 border-t border-zinc-900 flex gap-3 backdrop-blur-md">
+          <div className={`p-6 border-t flex gap-4 ${theme === 'dark' ? 'bg-zinc-950 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
             <input 
-              autoFocus
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Digite aqui..."
-              className="flex-1 bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl outline-none text-xs text-zinc-100 focus:border-blue-600 transition-all"
+              placeholder="Digite sua dúvida aqui..."
+              className={`flex-1 p-5 rounded-2xl outline-none text-sm transition-all shadow-inner ${
+                theme === 'dark' ? 'bg-zinc-900 border border-white/5 text-zinc-100 focus:border-blue-600' : 'bg-white border border-slate-200 text-slate-900 focus:border-blue-500'
+              }`}
             />
             <button 
               onClick={handleSendMessage}
               disabled={!inputText.trim() || isTyping}
-              className="bg-blue-600 text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all disabled:opacity-20 shadow-lg shadow-blue-600/20"
+              className="bg-blue-600 hover:bg-blue-500 text-white w-14 h-14 rounded-2xl flex items-center justify-center transition-all disabled:opacity-20 shadow-lg shadow-blue-600/30 btn-click-effect"
             >
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </button>
           </div>

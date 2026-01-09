@@ -1,53 +1,35 @@
-
 import React, { useState } from 'react';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
 }
 
-const Logo = () => (
-  <div className="relative group flex items-center justify-center">
-    <div className="absolute inset-0 bg-blue-500/20 blur-2xl group-hover:bg-blue-500/40 transition-all rounded-full scale-150"></div>
-    <div className="w-16 h-16 bg-gradient-to-br from-zinc-800 to-black rounded-2xl flex items-center justify-center border border-white/10 shadow-2xl transition-all duration-500 group-hover:rotate-6 group-hover:scale-110 group-hover:border-blue-500/50 relative z-10">
-      <svg viewBox="0 0 100 100" className="w-10 h-10">
-        <defs>
-          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style={{ stopColor: '#3b82f6', stopOpacity: 1 }} />
-            <stop offset="100%" style={{ stopColor: '#2563eb', stopOpacity: 1 }} />
-          </linearGradient>
-        </defs>
-        <path d="M20,50 Q20,20 50,20 Q80,20 80,50 Q80,80 50,80 Q20,80 20,50 Z" fill="none" stroke="url(#grad)" strokeWidth="4" />
-        <path d="M35,40 L65,60 M35,60 L65,40" stroke="white" strokeWidth="6" strokeLinecap="round" opacity="0.8" />
-        <circle cx="50" cy="50" r="10" fill="url(#grad)" className="animate-pulse" />
-      </svg>
-    </div>
-  </div>
-);
-
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, theme, toggleTheme }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const menuItems = [
-    { id: 'dashboard', label: 'DASHBOARD', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-    { id: 'simulator', label: 'SIMULADOR', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { id: 'mentoria', label: 'MENTORIA AI', icon: 'M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3m0 18a9.003 9.003 0 01-9-9c0-3.69 2.233-6.856 5.414-8.186m7.347 11.239A13.153 13.153 0 0112 21c-4.756 0-9.06-2.54-11.436-6.386M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707' },
-    { id: 'flashcards', label: 'FLASHCARDS', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
-    { id: 'study-plan', label: 'PLANO DE ESTUDOS', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-    { id: 'essay', label: 'REDAÇÃO', icon: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z' },
-    { id: 'mnemonics', label: 'MNEMÔNICOS', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
-    { id: 'image-tools', label: 'MAPAS MENTAIS', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z' },
-    { id: 'news', label: 'NOTÍCIAS', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6m-6 4h6' },
+    { id: 'dashboard', label: 'Dashboard', color: 'text-blue-500', glow: 'shadow-blue-500/20', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
+    { id: 'simulator', label: 'Simulador', color: 'text-emerald-500', glow: 'shadow-emerald-500/20', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { id: 'essay', label: 'Redação', color: 'text-rose-500', glow: 'shadow-rose-500/20', icon: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z' },
+    { id: 'mindmap', label: 'Mapa Mental', color: 'text-purple-500', glow: 'shadow-purple-500/20', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
+    { id: 'flashcards', label: 'Flashcards', color: 'text-amber-500', glow: 'shadow-amber-500/20', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+    { id: 'mnemonics', label: 'Mnêmico', color: 'text-pink-500', glow: 'shadow-pink-500/20', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
+    { id: 'study-plan', label: 'Plano', color: 'text-indigo-500', glow: 'shadow-indigo-500/20', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
   ];
 
   return (
     <>
-      <header className="md:hidden flex items-center justify-between p-4 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-900 sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <Logo />
-          <h1 className="font-black text-xl tracking-tighter uppercase">Concurso<span className="text-blue-400">Master</span></h1>
+      <header className={`md:hidden flex items-center justify-between p-6 sticky top-0 z-50 border-b backdrop-blur-2xl ${theme === 'dark' ? 'bg-zinc-950/80 border-white/5' : 'bg-white/80 border-slate-200'}`}>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40 transform -rotate-3">
+            <span className="text-white font-black text-2xl italic">C</span>
+          </div>
+          <h1 className="font-black text-xl tracking-tighter uppercase glow-text">Concurso<span className="text-blue-500">Master</span></h1>
         </div>
-        <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-zinc-400 neon-button-blue rounded-lg">
+        <button onClick={() => setIsOpen(!isOpen)} className={`p-3 rounded-2xl transition-all ${theme === 'dark' ? 'text-zinc-400 bg-white/5 hover:bg-white/10' : 'text-slate-600 bg-slate-100 hover:bg-slate-200'}`}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             {isOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
           </svg>
@@ -55,42 +37,59 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
       </header>
 
       <aside className={`
-        fixed inset-y-0 left-0 w-72 bg-gradient-to-b from-zinc-950 to-black border-r border-zinc-900 h-full flex flex-col z-50 transition-all duration-500 ease-[cubic-bezier(0.2,1,0.3,1)]
+        fixed inset-y-0 left-0 w-80 h-full flex flex-col z-50 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] border-r
         md:translate-x-0 md:sticky md:top-0
+        ${theme === 'dark' ? 'bg-zinc-950/40 border-white/5 backdrop-blur-[40px]' : 'bg-white border-slate-200 shadow-2xl shadow-slate-200/50'}
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-10 flex flex-col items-center">
-          <Logo />
-          <h1 className="font-black text-2xl mt-6 tracking-tighter uppercase text-white">CONCURSO<span className="text-blue-400">MASTER</span></h1>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] mt-2 text-center">EXCELÊNCIA EM PERFORMANCE</p>
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 rounded-[2rem] flex items-center justify-center shadow-[0_20px_40px_rgba(37,99,235,0.4)] group cursor-pointer transition-transform duration-500 hover:scale-110 hover:-rotate-6">
+             <span className="text-white font-black text-4xl italic">C</span>
+          </div>
+          <h1 className={`font-black text-2xl mt-6 leading-none uppercase tracking-tighter glow-text ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>CONCURSO</h1>
+          <span className="text-blue-500 font-extrabold text-[11px] tracking-[0.5em] uppercase mt-2">MASTER ELITE</span>
         </div>
         
-        <nav className="flex-1 px-4 space-y-1.5 mt-2 overflow-y-auto scrollbar-hide">
+        <nav className="flex-1 px-6 space-y-2 mt-4 overflow-y-auto scrollbar-hide">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => { setActiveTab(item.id); setIsOpen(false); }}
-              className={`w-full text-left px-5 py-4 rounded-2xl transition-all flex items-center gap-4 group btn-click-effect ${
+              className={`w-full text-left px-6 py-4 rounded-[1.5rem] transition-all flex items-center gap-5 group btn-click-effect relative overflow-hidden ${
                 activeTab === item.id 
-                  ? 'bg-blue-600/10 text-blue-400 border border-blue-400/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]' 
-                  : 'text-zinc-500 hover:text-white hover:bg-zinc-900/50'
+                  ? 'bg-blue-600 text-white shadow-[0_10px_30px_rgba(37,99,235,0.4)]' 
+                  : theme === 'dark' ? 'text-zinc-500 hover:bg-white/5 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
-              <svg className={`w-5 h-5 transition-all flex-shrink-0 ${activeTab === item.id ? 'text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'text-zinc-700 group-hover:text-zinc-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {activeTab === item.id && (
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-transparent opacity-50"></div>
+              )}
+              <svg className={`w-5 h-5 transition-all duration-300 ${activeTab === item.id ? 'scale-110' : item.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d={item.icon} />
               </svg>
-              <span className="font-black text-[11px] tracking-widest uppercase">{item.label}</span>
+              <span className={`font-black text-[11px] uppercase tracking-[0.15em] relative z-10 transition-all ${activeTab === item.id ? 'translate-x-1' : ''}`}>{item.label}</span>
+              {activeTab === item.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_#fff]"></div>}
             </button>
           ))}
         </nav>
 
-        <div className="p-6">
-          <div className="bg-zinc-900/40 p-5 rounded-3xl border border-white/5 backdrop-blur-sm">
-            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-2 text-center">EDITION BETA 2.5</p>
-            <div className="flex items-center justify-center gap-3">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,1)] animate-pulse"></div>
-              <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">SISTEMA VIGILANTE</span>
+        <div className="p-8 space-y-6">
+          <button 
+            onClick={toggleTheme}
+            className={`w-full flex items-center justify-between px-6 py-4 rounded-[1.5rem] border transition-all btn-click-effect shadow-sm group ${
+              theme === 'dark' ? 'bg-zinc-900/50 border-white/5 text-zinc-300 hover:border-blue-500/40 hover:bg-zinc-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-blue-400'
+            }`}
+          >
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] group-hover:text-blue-500 transition-colors">{theme === 'dark' ? 'PROTOCOLO DARK' : 'PROTOCOLO CLEAN'}</span>
+            <span className="text-xl group-hover:scale-125 transition-transform duration-300">{theme === 'dark' ? '🌙' : '☀️'}</span>
+          </button>
+          
+          <div className={`p-5 rounded-[1.5rem] border flex items-center gap-4 transition-all ${theme === 'dark' ? 'bg-zinc-950 border-white/5' : 'bg-slate-100 border-slate-200'}`}>
+            <div className="relative">
+              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping absolute inset-0"></div>
+              <div className="w-3 h-3 rounded-full bg-emerald-500 relative shadow-[0_0_15px_rgba(16,185,129,0.7)]"></div>
             </div>
+            <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${theme === 'dark' ? 'text-zinc-500' : 'text-slate-500'}`}>INTELIGÊNCIA ATIVA</span>
           </div>
         </div>
       </aside>
