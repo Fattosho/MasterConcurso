@@ -1,244 +1,292 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, Banca, Materia, Nivel, MnemonicResponse, Flashcard, StudyPlanDay } from "../types";
 
-// Função helper para obter a chave com segurança
 const getApiKey = () => {
-  const key = process?.env?.API_KEY;
-  if (!key || key === 'undefined') return "";
-  return key;
+  // Tenta pegar do process.env (Vite define) ou do objeto global window.process
+  const key = process?.env?.API_KEY || (window as any).process?.env?.API_KEY;
+  if (!key || key === 'undefined' || key === 'YOUR_API_KEY') return "";
+  return key.trim();
 };
 
 const getAI = () => {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error("API_KEY não encontrada nas variáveis de ambiente.");
+    throw new Error("CHAVE_FALTANDO");
   }
   return new GoogleGenAI({ apiKey });
 };
 
-export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Nivel): Promise<Question> => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Gere uma questão de múltipla escolha inédita para concursos no Brasil.
-    BANCA: "${banca}"
-    MATÉRIA: "${materia}"
-    NÍVEL: "${nivel}"
-    Estilo: Fiel à banca. 5 alternativas (A-E). Responda apenas JSON puro.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          statement: { type: Type.STRING },
-          options: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                text: { type: Type.STRING }
-              }
-            }
-          },
-          correctAnswerId: { type: Type.STRING },
-          explanation: { type: Type.STRING }
-        },
-        required: ["statement", "options", "correctAnswerId", "explanation"]
-      }
-    }
-  });
+// Função para tratar erros de API de forma centralizada
+const handleApiError = (error: any) => {
+  console.error("Erro na API Gemini:", error);
+  if (error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("403") || error?.message?.includes("401")) {
+    throw new Error("CHAVE_INVALIDA");
+  }
+  if (error?.message?.includes("CHAVE_FALTANDO")) {
+    throw new Error("CHAVE_FALTANDO");
+  }
+  throw error;
+};
 
-  const data = JSON.parse(response.text || "{}");
-  return {
-    ...data,
-    id: `Q-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-    banca,
-    materia,
-    nivel
-  };
+export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Nivel): Promise<Question> => {
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Gere uma questão de múltipla escolha inédita para concursos no Brasil.
+      BANCA: "${banca}"
+      MATÉRIA: "${materia}"
+      NÍVEL: "${nivel}"
+      Estilo: Fiel à banca. 5 alternativas (A-E). Responda apenas JSON puro.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            statement: { type: Type.STRING },
+            options: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  text: { type: Type.STRING }
+                }
+              }
+            },
+            correctAnswerId: { type: Type.STRING },
+            explanation: { type: Type.STRING }
+          },
+          required: ["statement", "options", "correctAnswerId", "explanation"]
+        }
+      }
+    });
+
+    const data = JSON.parse(response.text || "{}");
+    return {
+      ...data,
+      id: `Q-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+      banca,
+      materia,
+      nivel
+    };
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]> => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Gere 5 flashcards de revisão rápida para a matéria "${materia}" de concursos públicos brasileiros.
-    Foque em prazos, conceitos chaves ou artigos importantes. 
-    Responda apenas JSON puro.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            front: { type: Type.STRING },
-            back: { type: Type.STRING },
-            subject: { type: Type.STRING }
-          },
-          required: ["front", "back", "subject"]
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Gere 5 flashcards de revisão rápida para a matéria "${materia}" de concursos públicos brasileiros. Responda apenas JSON puro.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              front: { type: Type.STRING },
+              back: { type: Type.STRING },
+              subject: { type: Type.STRING }
+            },
+            required: ["front", "back", "subject"]
+          }
         }
       }
-    }
-  });
-  return JSON.parse(response.text || "[]");
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const generateStudyPlan = async (materia: Materia, horasDisponiveis: number): Promise<StudyPlanDay[]> => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Crie um cronograma de estudo intensivo para a matéria "${materia}" considerando ${horasDisponiveis} horas de estudo.
-    Divida em 3 períodos (Início, Meio, Fim). Responda apenas JSON puro.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            period: { type: Type.STRING },
-            activity: { type: Type.STRING },
-            focus: { type: Type.STRING }
-          },
-          required: ["period", "activity", "focus"]
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Crie um cronograma de estudo para "${materia}" com ${horasDisponiveis} horas. JSON puro.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              period: { type: Type.STRING },
+              activity: { type: Type.STRING },
+              focus: { type: Type.STRING }
+            },
+            required: ["period", "activity", "focus"]
+          }
         }
       }
-    }
-  });
-  return JSON.parse(response.text || "[]");
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const generateEssayTheme = async (banca: Banca): Promise<string> => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: `Gere um tema de redação inédito e atualizado, típico da banca "${banca}". Retorne apenas o título/frase temática.`,
-  });
-  return response.text || "Importância da ética no serviço público";
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: `Gere um tema de redação para a banca "${banca}". Retorne apenas o texto do tema.`,
+    });
+    return response.text || "Tema indisponível no momento.";
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const getEssayTips = async (theme: string, banca: Banca) => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Dê 4 dicas simples para o tema: "${theme}" na banca ${banca}. JSON puro.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING }
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Dicas para o tema: "${theme}" (Banca ${banca}). JSON ARRAY de strings.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
       }
-    }
-  });
-  return JSON.parse(response.text || "[]");
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const evaluateEssayImage = async (base64Image: string, theme: string, banca: Banca) => {
-  const ai = getAI();
-  const mimeTypeMatch = base64Image.match(/^data:(image\/[a-z]+);base64,/);
-  const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-  const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: {
-      parts: [
-        { inlineData: { data: pureBase64, mimeType } },
-        { text: `Avalie esta redação para o tema "${theme}" (Banca ${banca}). JSON puro.` }
-      ]
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          grade: { type: Type.STRING },
-          pros: { type: Type.ARRAY, items: { type: Type.STRING } },
-          cons: { type: Type.ARRAY, items: { type: Type.STRING } },
-          tips: { type: Type.STRING },
-          fullAnalysis: { type: Type.STRING }
-        },
-        required: ["grade", "pros", "cons", "tips", "fullAnalysis"]
+  try {
+    const ai = getAI();
+    const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          { inlineData: { data: pureBase64, mimeType: 'image/jpeg' } },
+          { text: `Avalie esta redação: Tema "${theme}", Banca "${banca}". JSON puro.` }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            grade: { type: Type.STRING },
+            pros: { type: Type.ARRAY, items: { type: Type.STRING } },
+            cons: { type: Type.ARRAY, items: { type: Type.STRING } },
+            tips: { type: Type.STRING },
+            fullAnalysis: { type: Type.STRING }
+          },
+          required: ["grade", "pros", "cons", "tips", "fullAnalysis"]
+        }
       }
-    }
-  });
-  return JSON.parse(response.text || "{}");
+    });
+    return JSON.parse(response.text || "{}");
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const generateMnemonic = async (materia: Materia): Promise<MnemonicResponse> => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Crie um mnemônico para a matéria "${materia}". JSON puro.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          phrase: { type: Type.STRING },
-          meaning: { type: Type.STRING },
-          explanation: { type: Type.STRING }
-        },
-        required: ["phrase", "meaning", "explanation"]
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Mnemônico para "${materia}". JSON puro.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            phrase: { type: Type.STRING },
+            meaning: { type: Type.STRING },
+            explanation: { type: Type.STRING }
+          },
+          required: ["phrase", "meaning", "explanation"]
+        }
       }
-    }
-  });
-  return JSON.parse(response.text || "{}");
+    });
+    return JSON.parse(response.text || "{}");
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const getLatestNews = async (query: string) => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Notícias recentes sobre: ${query}. Use Markdown.`,
-    config: { tools: [{ googleSearch: {} }] }
-  });
-  return {
-    text: response.text,
-    sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
-  };
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Notícias: ${query}`,
+      config: { tools: [{ googleSearch: {} }] }
+    });
+    return {
+      text: response.text,
+      sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+    };
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const editStudyImage = async (base64Image: string, prompt: string) => {
-  const ai = getAI();
-  const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [
-        { inlineData: { data: pureBase64, mimeType: 'image/png' } },
-        { text: prompt }
-      ]
-    }
-  });
-  const part = response.candidates?.[0]?.content?.parts.find((p: any) => p.inlineData);
-  return part ? `data:image/png;base64,${part.inlineData.data}` : null;
+  try {
+    const ai = getAI();
+    const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          { inlineData: { data: pureBase64, mimeType: 'image/png' } },
+          { text: prompt }
+        ]
+      }
+    });
+    const part = response.candidates?.[0]?.content?.parts.find((p: any) => p.inlineData);
+    return part ? `data:image/png;base64,${part.inlineData.data}` : null;
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const generateMindMapFromDescription = async (prompt: string): Promise<string | null> => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [{ text: `Mapa mental profissional sobre: ${prompt}.` }]
-    }
-  });
-  const part = response.candidates?.[0]?.content?.parts.find((p: any) => p.inlineData);
-  return part ? `data:image/png;base64,${part.inlineData.data}` : null;
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: `Mapa mental: ${prompt}` }]
+      }
+    });
+    const part = response.candidates?.[0]?.content?.parts.find((p: any) => p.inlineData);
+    return part ? `data:image/png;base64,${part.inlineData.data}` : null;
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
 
 export const transcribeAndSummarizeAudio = async (base64Audio: string): Promise<string> => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: {
-      parts: [
-        { inlineData: { data: base64Audio, mimeType: 'audio/webm' } },
-        { text: "Transcreva e resuma este áudio de estudo." }
-      ]
-    }
-  });
-  return response.text || "";
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          { inlineData: { data: base64Audio, mimeType: 'audio/webm' } },
+          { text: "Transcreva e resuma." }
+        ]
+      }
+    });
+    return response.text || "";
+  } catch (e) {
+    return handleApiError(e);
+  }
 };
