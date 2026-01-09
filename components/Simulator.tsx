@@ -29,7 +29,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
   const [correctInSession, setCorrectInSession] = useState(0);
   const [totalSessionTimeTaken, setTotalSessionTimeTaken] = useState(0);
   
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<any>(null);
   const sessionStartTimeRef = useRef<number>(0);
 
   const bancas: Banca[] = [
@@ -39,7 +39,14 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
 
   const materias: Materia[] = [
     'Língua Portuguesa', 'Matemática', 'Raciocínio Lógico', 'Informática', 
-    'Direito Constitucional', 'Direito Administrativo', 'Direito Penal'
+    'Direito Constitucional', 'Direito Administrativo', 'Direito Penal', 
+    'Direito Processual Penal', 'Direito Civil', 'Direito Processual Civil', 
+    'Direito Tributário', 'Direito Eleitoral', 'Direito do Trabalho', 
+    'Direito Processual do Trabalho', 'Direito Previdenciário', 'Administração Pública', 
+    'Administração Geral', 'Gestão de Pessoas', 'Contabilidade Geral', 
+    'Contabilidade Pública', 'Auditoria', 'Estatística', 'Economia', 
+    'Arquivologia', 'Ética no Serviço Público', 'Atualidades', 
+    'Língua Inglesa', 'Língua Espanhola', 'Políticas Públicas'
   ];
 
   useEffect(() => {
@@ -156,7 +163,6 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
 
   return (
     <div className="page-transition max-w-5xl mx-auto space-y-10 pb-16 relative">
-      {/* Visual Feedback Flash */}
       {feedbackEffect === 'correct' && <div className="fixed inset-0 bg-emerald-500/10 pointer-events-none z-[100] animate-in fade-in fade-out duration-1000"></div>}
       {feedbackEffect === 'wrong' && <div className="fixed inset-0 bg-rose-500/10 pointer-events-none z-[100] animate-in fade-in fade-out duration-1000"></div>}
 
@@ -181,21 +187,26 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
       </header>
 
       {loading && !isSessionActive && (
-        <div className="flex flex-col items-center justify-center py-32 space-y-12 animate-in fade-in duration-500">
-           <div className="relative">
-              <div className="absolute inset-0 bg-blue-500/30 rounded-full blur-[60px] animate-pulse"></div>
-              <div className="w-44 h-44 flex items-center justify-center relative z-10">
-                 <svg viewBox="0 0 100 100" className="w-full h-full animate-pulse">
-                   <path d="M50 25 C 30 25, 20 40, 20 55 C 20 70, 30 80, 50 80 C 70 80, 80 70, 80 55 C 80 40, 70 25, 50 25 Z" fill="none" stroke="#3b82f6" strokeWidth="2" className="opacity-40" />
-                   <path d="M50 25 V 80 M20 55 H 80" stroke="#3b82f6" strokeWidth="1" className="opacity-20" />
-                   <circle cx="50" cy="50" r="10" fill="#3b82f6" className="animate-ping" />
-                 </svg>
-                 <span className="absolute text-5xl">🧠</span>
+        <div className="flex flex-col items-center justify-center py-32 space-y-16 animate-in fade-in duration-700">
+           <div className="relative w-64 h-64">
+              <div className="absolute inset-0 bg-blue-500/10 rounded-full animate-cyber-pulse"></div>
+              {/* Orbital Rings */}
+              <div className="absolute inset-4 border border-blue-500/20 rounded-full animate-[spin_8s_linear_infinite]"></div>
+              <div className="absolute inset-10 border border-blue-500/10 rounded-full animate-[spin_12s_linear_infinite_reverse]"></div>
+              <div className="absolute inset-0 border-t-2 border-blue-500/40 rounded-full animate-[spin_3s_linear_infinite]"></div>
+              
+              <div className="absolute inset-0 flex items-center justify-center animate-float">
+                 <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-blue-400 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.5)] border border-white/20 relative overflow-hidden group">
+                    <span className="text-5xl drop-shadow-lg relative z-10">🧠</span>
+                    <div className="absolute inset-0 bg-white/20 animate-scan"></div>
+                 </div>
               </div>
            </div>
-           <div className="text-center space-y-2">
-              <p className="text-[11px] font-black text-blue-500 uppercase tracking-[0.6em] animate-pulse">Sintonizando Questões Inéditas</p>
-              <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Analisando padrão da banca {banca}...</p>
+           <div className="text-center space-y-4">
+              <p className="text-[13px] font-black text-blue-400 uppercase tracking-[0.8em] animate-pulse">SINTETIZANDO QUESTÕES</p>
+              <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest bg-zinc-900/50 px-6 py-2 rounded-full border border-white/5">
+                 Analisando padrão neural da banca {banca}
+              </p>
            </div>
         </div>
       )}
@@ -219,6 +230,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
             <select value={nivel} onChange={e => setNivel(e.target.value as Nivel)} className="w-full bg-zinc-950/50 border border-zinc-800 p-5 rounded-2xl font-black text-[11px] outline-none focus:border-blue-500 transition-all text-zinc-300 uppercase appearance-none">
               <option value="Médio">MÉDIO</option>
               <option value="Superior">SUPERIOR</option>
+              <option value="Técnico">TÉCNICO</option>
             </select>
           </div>
           <div className="md:col-span-1">
@@ -226,7 +238,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
             <input type="number" value={questionCount} min="1" max="100" onChange={(e) => setQuestionCount(parseInt(e.target.value) || 1)} className="w-full bg-zinc-950/50 border border-zinc-800 p-5 rounded-2xl font-black text-[11px] outline-none focus:border-blue-500 transition-all text-zinc-300 text-center" />
           </div>
           <div className="md:col-span-1">
-            <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">TEMPO (M)</label>
+            <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">TEMPO (Minutos)</label>
             <input type="number" value={timeLimitMinutes} min="1" max="240" onChange={(e) => setTimeLimitMinutes(parseInt(e.target.value) || 1)} className="w-full bg-zinc-950/50 border border-zinc-800 p-5 rounded-2xl font-black text-[11px] outline-none focus:border-blue-500 transition-all text-zinc-300 text-center" />
           </div>
           <div className="md:col-span-1 flex items-end">
@@ -238,7 +250,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
       {isGameOver && (
         <div className="glass-card p-16 rounded-[4rem] text-center border-blue-500/20 animate-in zoom-in duration-700 shadow-2xl space-y-12 backdrop-blur-sm">
            <div className="space-y-4">
-              <div className="text-7xl mb-8">🎯</div>
+              <div className="text-7xl mb-8 animate-float">🎯</div>
               <h3 className="text-5xl font-black text-white uppercase tracking-tighter">SIMULADO FINALIZADO</h3>
               <p className="text-zinc-500 font-bold text-[10px] uppercase tracking-[0.6em]">Processamento de Resultado Concluído</p>
            </div>
@@ -270,33 +282,40 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
               <span className="bg-zinc-900/80 border border-zinc-800 px-6 py-2.5 rounded-full text-zinc-500">QUESTÃO {questionsAnsweredInSession + 1}</span>
            </div>
 
-           <div className="space-y-12">
-              <h2 className="text-2xl md:text-3xl font-bold leading-tight text-zinc-100 tracking-tight">{currentQuestion.statement}</h2>
-              <div className="grid grid-cols-1 gap-5">
+           <div className="space-y-10">
+              <h2 className="text-xl md:text-2xl font-bold leading-relaxed text-zinc-100 tracking-tight text-pretty">
+                {currentQuestion.statement}
+              </h2>
+
+              <div className="grid grid-cols-1 gap-4">
                 {currentQuestion.options.map(opt => {
                   const isCorrect = opt.id === currentQuestion.correctAnswerId;
                   const isSelected = selectedOption === opt.id;
-                  let styleClass = "bg-zinc-900/30 border-zinc-800/60 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900/50";
+                  let styleClass = "bg-zinc-900/40 border-zinc-800/60 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/60";
+                  
                   if (showExplanation) {
                     if (isCorrect) styleClass = "bg-emerald-500/10 border-emerald-500/60 text-emerald-400 font-bold shadow-[0_0_30px_rgba(16,185,129,0.1)]";
                     else if (isSelected) styleClass = "bg-rose-500/10 border-rose-500/60 text-rose-400 opacity-80";
-                    else styleClass = "opacity-20 blur-[2px]";
+                    else styleClass = "opacity-20 blur-[1px]";
                   }
+
                   return (
                     <button 
                       key={opt.id} 
                       onClick={() => handleAnswer(opt.id)} 
                       disabled={showExplanation} 
-                      className={`w-full p-7 rounded-[2rem] border transition-all flex gap-8 text-left group btn-click-effect relative overflow-hidden ${styleClass}`}
+                      className={`w-full p-6 md:p-8 rounded-[2rem] border transition-all flex gap-6 text-left group btn-click-effect relative overflow-hidden items-start ${styleClass}`}
                     >
-                      <span className={`w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-2xl border text-[12px] font-black transition-all ${
+                      <span className={`w-10 h-10 md:w-12 md:h-12 flex-shrink-0 flex items-center justify-center rounded-2xl border text-[12px] font-black transition-all mt-0.5 ${
                         showExplanation && isCorrect 
                         ? 'bg-emerald-500 border-emerald-500 text-black shadow-lg' 
                         : isSelected && !isCorrect ? 'bg-rose-500 border-rose-500 text-white' : 'border-zinc-800 bg-zinc-950 text-zinc-600'
                       }`}>
                         {opt.id}
                       </span>
-                      <span className="text-sm md:text-[17px] font-medium flex-1 self-center leading-relaxed">{opt.text}</span>
+                      <span className="text-sm md:text-lg font-medium flex-1 leading-relaxed text-pretty py-0.5">
+                        {opt.text}
+                      </span>
                     </button>
                   );
                 })}
@@ -304,16 +323,20 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
            </div>
 
            {showExplanation && (
-             <div className="p-12 bg-zinc-950/80 backdrop-blur-xl border border-zinc-800 rounded-[3rem] space-y-8 animate-in fade-in zoom-in duration-700 shadow-inner">
+             <div className="p-10 md:p-14 bg-zinc-950/80 backdrop-blur-xl border border-zinc-800 rounded-[3rem] space-y-8 animate-in fade-in zoom-in duration-700 shadow-inner">
                <div className="flex items-center gap-5">
                  <div className="w-1.5 h-8 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
                  <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.4em]">RESPOSTA COMENTADA</h4>
                </div>
-               <p className="text-zinc-400 text-[15px] leading-relaxed italic border-l border-zinc-900 pl-10">{currentQuestion.explanation}</p>
+               
+               <p className="text-zinc-400 text-base md:text-lg leading-relaxed italic border-l-2 border-zinc-900 pl-8 md:pl-12 text-pretty">
+                 {currentQuestion.explanation}
+               </p>
+               
                <div className="pt-8 flex justify-end">
                   <button 
                     onClick={nextOrFinish} 
-                    className="neon-button-blue px-14 py-6 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] flex items-center gap-5"
+                    className="neon-button-blue px-12 py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] flex items-center gap-5"
                   >
                     {isPrefetching && !nextQuestion ? 'Gerando Próxima...' : questionsAnsweredInSession >= questionCount ? 'Finalizar' : 'Próxima'} 
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

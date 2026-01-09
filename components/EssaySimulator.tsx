@@ -19,8 +19,10 @@ const EssaySimulator: React.FC = () => {
   // Timer States
   const [timerStatus, setTimerStatus] = useState<'idle' | 'reading' | 'writing' | 'expired'>('idle');
   const [timeLeft, setTimeLeft] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const tipTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Fix: Use any for timer references to avoid NodeJS.Timeout error in browser environment
+  const timerRef = useRef<any>(null);
+  const tipTimerRef = useRef<any>(null);
 
   const bancas: Banca[] = [
     'FGV', 'Cebraspe', 'FCC', 'Vunesp', 'Cesgranrio', 'Instituto AOCP', 

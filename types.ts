@@ -17,7 +17,7 @@ export type Materia =
   | 'Arquivologia' | 'Ética no Serviço Público' | 'Atualidades' 
   | 'Língua Inglesa' | 'Língua Espanhola' | 'Políticas Públicas';
 
-export type Nivel = 'Médio' | 'Superior';
+export type Nivel = 'Médio' | 'Superior' | 'Técnico';
 
 export interface Question {
   id: string;
@@ -37,6 +37,20 @@ export interface UserPerformance {
   totalAnswered: number;
   correctAnswers: number;
   subjectStats: Record<string, { total: number; correct: number }>;
+  xp?: number;
+  level?: number;
+}
+
+export interface Flashcard {
+  front: string;
+  back: string;
+  subject: string;
+}
+
+export interface StudyPlanDay {
+  period: string;
+  activity: string;
+  focus: string;
 }
 
 export interface EssayFeedback {
