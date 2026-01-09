@@ -86,12 +86,14 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
     sessionStartTimeRef.current = Date.now();
 
     try {
+      console.log(`Gerando questão para banca ${banca}, matéria ${materia}...`);
       const q = await generateQuestion(banca, materia, nivel);
       setCurrentQuestion(q);
       setIsSessionActive(true);
       prefetchNext(banca, materia, nivel);
     } catch (e) {
-      alert("ERRO AO GERAR QUESTÃO. TENTE NOVAMENTE.");
+      console.error("Erro na geração da AI:", e);
+      alert("ERRO AO CONECTAR COM A IA. Verifique sua chave API e tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -144,6 +146,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
         setCurrentQuestion(q);
         prefetchNext(banca, materia, nivel);
       } catch (e) {
+        console.error("Erro ao carregar próxima questão:", e);
         alert("Erro ao carregar questão.");
       } finally {
         setLoading(false);
@@ -190,7 +193,6 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
         <div className="flex flex-col items-center justify-center py-32 space-y-16 animate-in fade-in duration-700">
            <div className="relative w-64 h-64">
               <div className="absolute inset-0 bg-blue-500/10 rounded-full animate-cyber-pulse"></div>
-              {/* Orbital Rings */}
               <div className="absolute inset-4 border border-blue-500/20 rounded-full animate-[spin_8s_linear_infinite]"></div>
               <div className="absolute inset-10 border border-blue-500/10 rounded-full animate-[spin_12s_linear_infinite_reverse]"></div>
               <div className="absolute inset-0 border-t-2 border-blue-500/40 rounded-full animate-[spin_3s_linear_infinite]"></div>
@@ -234,15 +236,15 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered }) => {
             </select>
           </div>
           <div className="md:col-span-1">
-            <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">QUESTÕES</label>
+            <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">QTD</label>
             <input type="number" value={questionCount} min="1" max="100" onChange={(e) => setQuestionCount(parseInt(e.target.value) || 1)} className="w-full bg-zinc-950/50 border border-zinc-800 p-5 rounded-2xl font-black text-[11px] outline-none focus:border-blue-500 transition-all text-zinc-300 text-center" />
           </div>
           <div className="md:col-span-1">
-            <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">TEMPO (Minutos)</label>
+            <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">MIN</label>
             <input type="number" value={timeLimitMinutes} min="1" max="240" onChange={(e) => setTimeLimitMinutes(parseInt(e.target.value) || 1)} className="w-full bg-zinc-950/50 border border-zinc-800 p-5 rounded-2xl font-black text-[11px] outline-none focus:border-blue-500 transition-all text-zinc-300 text-center" />
           </div>
           <div className="md:col-span-1 flex items-end">
-            <button onClick={startSession} className="w-full h-[62px] neon-button-solid text-white rounded-2xl font-black text-[11px] uppercase tracking-widest btn-click-effect">INICIAR</button>
+            <button onClick={startSession} className="w-full h-[62px] neon-button-solid text-white rounded-2xl font-black text-[11px] uppercase tracking-widest btn-click-effect">GERAR</button>
           </div>
         </div>
       )}

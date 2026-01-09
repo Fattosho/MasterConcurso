@@ -7,6 +7,7 @@ import EssaySimulator from './components/EssaySimulator';
 import MnemonicGenerator from './components/MnemonicGenerator';
 import Flashcards from './components/Flashcards';
 import StudyPlan from './components/StudyPlan';
+import Professor from './components/Professor';
 import { UserPerformance } from './types';
 import { getLatestNews, editStudyImage, generateMindMapFromDescription, transcribeAndSummarizeAudio } from './services/geminiService';
 
@@ -153,6 +154,7 @@ const App: React.FC = () => {
           {activeTab === 'study-plan' && <StudyPlan />}
           {activeTab === 'essay' && <EssaySimulator />}
           {activeTab === 'mnemonics' && <MnemonicGenerator />}
+          {activeTab === 'mentoria' && <Professor />}
           
           {activeTab === 'news' && (
             <div className="page-transition space-y-10">
