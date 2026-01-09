@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -13,8 +12,6 @@ import { getLatestNews, editStudyImage, generateMindMapFromDescription, transcri
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [apiError, setApiError] = useState<'NONE' | 'MISSING' | 'INVALID'>('NONE');
-  
   const [performance, setPerformance] = useState<UserPerformance>(() => {
     try {
       const saved = localStorage.getItem('user_performance');
@@ -22,28 +19,6 @@ const App: React.FC = () => {
     } catch (e) { console.error(e); }
     return { totalAnswered: 0, correctAnswers: 0, subjectStats: {}, xp: 0, level: 1 };
   });
-
-  useEffect(() => {
-    const checkKey = () => {
-      const key = process?.env?.API_KEY || (window as any).process?.env?.API_KEY;
-      if (!key || key === 'undefined' || key === '') {
-        setApiError('MISSING');
-      } else if (key.length < 20) {
-        setApiError('INVALID');
-      } else {
-        setApiError('NONE');
-      }
-    };
-    checkKey();
-    
-    // Listener global para erros de API vindos dos serviços
-    const handleError = (e: PromiseRejectionEvent) => {
-      if (e.reason?.message === 'CHAVE_INVALIDA') setApiError('INVALID');
-      if (e.reason?.message === 'CHAVE_FALTANDO') setApiError('MISSING');
-    };
-    window.addEventListener('unhandledrejection', handleError);
-    return () => window.removeEventListener('unhandledrejection', handleError);
-  }, []);
 
   const [newsQuery, setNewsQuery] = useState('Concursos abertos Brasil 2025');
   const [newsResult, setNewsResult] = useState<{text: string, sources: any[]} | null>(null);
@@ -86,12 +61,11 @@ const App: React.FC = () => {
   };
 
   const handleSearchNews = async () => {
-    if (apiError !== 'NONE') return;
     setNewsLoading(true);
     try {
       const result = await getLatestNews(newsQuery);
       setNewsResult(result);
-    } catch (err) {}
+    } catch (err) { alert("Falha na busca ou chave inválida."); }
     finally { setNewsLoading(false); }
   };
 
@@ -105,7 +79,7 @@ const App: React.FC = () => {
   };
 
   const handleMindMapAction = async () => {
-    if (!mindMapMode || apiError !== 'NONE') return;
+    if (!mindMapMode) return;
     setIsProcessingMindMap(true);
     try {
       if (mindMapMode === 'enhance') {
@@ -116,7 +90,7 @@ const App: React.FC = () => {
         const result = await generateMindMapFromDescription(imagePrompt);
         if (result) setSelectedImage(result);
       }
-    } catch (err) {}
+    } catch (err) { alert("Erro ao processar imagem."); }
     finally { setIsProcessingMindMap(false); }
   };
 
@@ -138,15 +112,13 @@ const App: React.FC = () => {
             const summary = await transcribeAndSummarizeAudio(base64Audio);
             const mindMapResult = await generateMindMapFromDescription(summary);
             if (mindMapResult) setSelectedImage(mindMapResult);
-          } catch (e) {}
+          } catch (e) { alert("Erro no áudio."); }
           finally { setIsProcessingMindMap(false); }
         };
       };
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (e) { 
-      alert("Microfone não disponível."); 
-    }
+    } catch (e) { alert("Microfone não disponível."); }
   };
 
   const stopRecording = () => {
@@ -158,34 +130,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-black text-zinc-100 selection:bg-blue-500/30 overflow-hidden relative">
-      
-      {/* ALERTA DE CONFIGURAÇÃO DE CHAVE */}
-      {apiError !== 'NONE' && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="max-w-md w-full glass-card p-10 rounded-[3rem] border-rose-500/30 text-center space-y-6">
-            <div className="text-6xl">⚠️</div>
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">
-              {apiError === 'MISSING' ? 'CHAVE DE API AUSENTE' : 'CHAVE DE API INVÁLIDA'}
-            </h2>
-            <p className="text-zinc-400 text-sm leading-relaxed">
-              Para o aplicativo funcionar, você precisa configurar sua chave do Gemini no Netlify. 
-              {apiError === 'INVALID' && " A chave atual parece estar incorreta ou expirada."}
-            </p>
-            <div className="bg-zinc-900/50 p-4 rounded-2xl text-left space-y-3">
-              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">COMO RESOLVER:</p>
-              <ol className="text-[11px] text-zinc-300 space-y-2 list-decimal list-inside">
-                <li>Gere uma chave em <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-blue-400 underline">Google AI Studio</a></li>
-                <li>No Netlify: Site Settings > Build & deploy > Environment</li>
-                <li>Adicione <b>API_KEY</b> com o valor da sua chave</li>
-                <li>Faça um <b>Trigger Deploy (Clear cache)</b></li>
-              </ol>
-            </div>
-            <button onClick={() => window.location.reload()} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs uppercase tracking-widest">TENTAR NOVAMENTE</button>
-          </div>
-        </div>
-      )}
-
+    <div className="flex flex-col md:flex-row min-h-screen bg-black text-zinc-100 overflow-hidden relative">
       <div className="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse"></div>
       
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -231,13 +176,7 @@ const App: React.FC = () => {
                       <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Fontes:</p>
                       <div className="flex flex-wrap gap-3">
                         {newsResult.sources.map((source: any, idx: number) => source.web && (
-                          <a 
-                            key={idx} 
-                            href={source.web.uri} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-bold text-blue-400 hover:border-blue-500 transition-all"
-                          >
+                          <a key={idx} href={source.web.uri} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-bold text-blue-400">
                             {source.web.title || source.web.uri}
                           </a>
                         ))}
