@@ -11,14 +11,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: false,
-      minify: 'esbuild',
-      rollupOptions: {
-        input: './index.html'
-      }
-    },
-    server: {
-      port: 3000,
-      host: true
+      minify: 'esbuild'
     }
   };
 });
