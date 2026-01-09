@@ -138,6 +138,31 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const RadarLoading = () => (
+    <div className="flex flex-col items-center justify-center py-40 space-y-12 animate-in fade-in duration-500">
+      <div className="relative w-48 h-48">
+        {/* Radar Background */}
+        <div className="absolute inset-0 border-4 border-blue-600/10 rounded-full"></div>
+        <div className="absolute inset-4 border-2 border-blue-600/5 rounded-full"></div>
+        <div className="absolute inset-12 border border-blue-600/5 rounded-full"></div>
+        
+        {/* Radar Sweep */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 to-transparent rounded-full animate-spin duration-[3s]"></div>
+        
+        {/* Radar Center Dot */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.8)] animate-pulse"></div>
+        
+        {/* Simulating Data Points */}
+        <div className="absolute top-1/4 right-1/4 w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping opacity-60"></div>
+        <div className="absolute bottom-1/3 left-1/4 w-2 h-2 bg-blue-300 rounded-full animate-ping opacity-40 delay-700"></div>
+      </div>
+      <div className="text-center space-y-3">
+        <p className="text-blue-600 text-[11px] font-black uppercase tracking-[0.6em] animate-pulse">Escaneando Bancos de Dados</p>
+        <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-[0.3em]">Recuperando Questão: {banca}</p>
+      </div>
+    </div>
+  );
+
   const cardClasses = `glass-card p-12 md:p-16 rounded-[4rem] border transition-all duration-700 shadow-3xl relative overflow-hidden ${theme === 'dark' ? 'border-zinc-900' : 'border-slate-200'}`;
 
   return (
@@ -148,7 +173,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
              <div className="w-2 h-10 bg-blue-600 rounded-full"></div>
              <h2 className={`text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none glow-text`}>Arena de <span className="text-blue-600">Combate</span></h2>
           </div>
-          <p className={`${theme === 'dark' ? 'text-zinc-500' : 'text-slate-500'} text-sm font-bold uppercase tracking-[0.3em] ml-6`}>Protocolo de Simulação Técnica</p>
+          <p className={`${theme === 'dark' ? 'text-zinc-500' : 'text-slate-500'} text-sm font-bold uppercase tracking-[0.3em] ml-6`}>Protocolo de Simulação Técnica Elite</p>
         </div>
         
         {isSessionActive && (
@@ -165,7 +190,9 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
         )}
       </header>
 
-      {!isSessionActive && !isGameOver && (
+      {loading && <RadarLoading />}
+
+      {!loading && !isSessionActive && !isGameOver && (
         <div className={cardClasses}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="space-y-4">
@@ -212,7 +239,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
         </div>
       )}
 
-      {isSessionActive && currentQuestion && (
+      {!loading && isSessionActive && currentQuestion && (
         <div className="space-y-10">
            <div className={`${cardClasses} ${feedback === 'wrong' ? 'border-rose-500/30 ring-4 ring-rose-500/10' : feedback === 'correct' ? 'border-emerald-500/30 ring-4 ring-emerald-500/10' : ''}`}>
               <div className="flex flex-wrap gap-4 mb-10">
@@ -271,7 +298,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
         </div>
       )}
 
-      {isGameOver && (
+      {!loading && isGameOver && (
         <div className={`p-20 rounded-[5rem] text-center border space-y-12 animate-in zoom-in duration-700 shadow-3xl ${theme === 'dark' ? 'glass-card border-blue-600/20 shadow-blue-900/20' : 'bg-white border-slate-200'}`}>
            <div className="text-9xl mb-8 filter drop-shadow-[0_0_30px_rgba(37,99,235,0.5)] animate-bounce">🏆</div>
            <div className="space-y-4">

@@ -64,7 +64,7 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     try {
-      setLoadingStep('Interpretando conteúdo...');
+      setLoadingStep('Interpretando conteúdo estratégico...');
       let contentToMap = inputText;
 
       if (type === 'audio' && data) {
@@ -73,7 +73,7 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
           contents: {
             parts: [
               { inlineData: { data, mimeType: 'audio/webm' } },
-              { text: "Transcreva este áudio de estudo de forma precisa e direta." }
+              { text: "Transcreva este áudio de estudo de forma precisa e direta, focando em hierarquia de conceitos para um mapa mental." }
             ]
           }
         });
@@ -85,7 +85,7 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
           contents: {
             parts: [
               { inlineData: { data: base64Image, mimeType: 'image/jpeg' } },
-              { text: "Extraia os pontos principais desta imagem de estudo para criar um mapa mental." }
+              { text: "Extraia os pontos principais desta imagem de estudo para criar um mapa mental estruturado." }
             ]
           }
         });
@@ -95,14 +95,14 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
       setLoadingStep('Estruturando conexões neurais...');
       const blueprintResponse = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Crie uma descrição visual detalhada para um mapa mental profissional baseado nisto: "${contentToMap}". Descreva o nó central, ramos primários e secundários, sugerindo cores e ícones para cada ramo.`
+        contents: `Crie uma descrição visual detalhada para um mapa mental profissional baseado nisto: "${contentToMap}". Descreva o nó central, ramos primários e secundários, sugerindo cores (paleta azul/cyan) e ícones para cada ramo.`
       });
 
-      setLoadingStep('Renderizando Mapa Mental...');
+      setLoadingStep('Renderizando Mapa Elite...');
       const imageResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
-          parts: [{ text: `A high-quality, professional, and very readable educational mind map based on this structure: ${blueprintResponse.text}. Clean design, white background, distinct colors for each branch, clear text labels.` }]
+          parts: [{ text: `A high-quality, professional, and very readable educational mind map based on this structure: ${blueprintResponse.text}. Modern design, dark background option, distinct shades of blue and cyan for each branch, clear text labels in white.` }]
         }
       });
 
@@ -121,9 +121,9 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-12 pb-20 page-transition">
-      <header className="border-l-4 border-purple-600 pl-6">
-        <h2 className="text-4xl font-black uppercase tracking-tighter">MAPA <span className="text-purple-600">MENTAL AI</span></h2>
-        <p className={`${theme === 'dark' ? 'text-zinc-500' : 'text-slate-500'} font-bold text-xs uppercase tracking-widest mt-1`}>SÍNTESE VISUAL MULTIMODAL</p>
+      <header className="border-l-4 border-blue-600 pl-6">
+        <h2 className="text-4xl font-black uppercase tracking-tighter">MAPA <span className="text-blue-600">MENTAL AI</span></h2>
+        <p className={`${theme === 'dark' ? 'text-zinc-500' : 'text-slate-500'} font-bold text-xs uppercase tracking-widest mt-1`}>SÍNTESE VISUAL MULTIMODAL DE ALTO DESEMPENHO</p>
       </header>
 
       <div className={`glass-card p-10 rounded-[3.5rem] border space-y-10 ${theme === 'dark' ? 'border-zinc-900' : 'border-slate-200'}`}>
@@ -134,8 +134,8 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
               onClick={() => setInputType(t)}
               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
                 inputType === t 
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' 
-                  : theme === 'dark' ? 'bg-zinc-900 text-zinc-500' : 'bg-slate-100 text-slate-400'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+                  : theme === 'dark' ? 'bg-zinc-900 text-zinc-500 hover:text-white' : 'bg-slate-100 text-slate-400 hover:text-slate-900'
               }`}
             >
               {t === 'text' ? 'Texto' : t === 'voice' ? 'Voz' : 'Imagem'}
@@ -148,24 +148,24 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Cole aqui seu resumo, lei ou tópicos para transformar em mapa..."
-              className={`w-full h-48 p-8 rounded-3xl outline-none focus:border-purple-600 border transition-all resize-none text-sm font-medium ${
-                theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+              placeholder="Cole aqui seu resumo, lei ou tópicos para transformar em mapa estratégico..."
+              className={`w-full h-48 p-8 rounded-3xl outline-none focus:border-blue-600 border transition-all resize-none text-sm font-medium ${
+                theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-200 shadow-inner' : 'bg-slate-50 border-slate-200 text-slate-800'
               }`}
             />
           )}
 
           {inputType === 'voice' && (
             <div className="text-center space-y-6">
-              <div className={`w-32 h-32 rounded-full flex items-center justify-center mx-auto transition-all ${isRecording ? 'bg-purple-600 animate-pulse scale-110 shadow-[0_0_40px_rgba(147,51,234,0.4)]' : 'bg-zinc-900 border border-white/5'}`}>
+              <div className={`w-32 h-32 rounded-full flex items-center justify-center mx-auto transition-all ${isRecording ? 'bg-blue-600 animate-pulse scale-110 shadow-[0_0_40px_rgba(37,99,235,0.4)]' : 'bg-zinc-900 border border-white/5'}`}>
                 <span className="text-5xl">{isRecording ? '🛑' : '🎙️'}</span>
               </div>
               <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                {isRecording ? 'Gravando Explicação...' : 'Clique para Iniciar Gravação'}
+                {isRecording ? 'Gravando Explicação Estratégica...' : 'Clique para Iniciar Gravação de Áudio'}
               </p>
               <button
                 onClick={isRecording ? stopRecording : startRecording}
-                className="bg-purple-600 hover:bg-purple-500 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest btn-click-effect shadow-xl shadow-purple-600/20"
+                className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest btn-click-effect shadow-xl shadow-blue-600/20"
               >
                 {isRecording ? 'Finalizar' : 'Gravar Áudio'}
               </button>
@@ -177,8 +177,8 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
               <input type="file" id="map-img-upload" hidden onChange={handleImageUpload} accept="image/*" />
               <label 
                 htmlFor="map-img-upload" 
-                className={`w-full h-48 border-2 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer transition-all hover:border-purple-600/50 ${
-                  selectedImage ? 'border-purple-600 bg-purple-600/5' : theme === 'dark' ? 'border-zinc-800 bg-zinc-950' : 'border-slate-200 bg-slate-50'
+                className={`w-full h-48 border-2 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer transition-all hover:border-blue-600/50 ${
+                  selectedImage ? 'border-blue-600 bg-blue-600/5' : theme === 'dark' ? 'border-zinc-800 bg-zinc-950' : 'border-slate-200 bg-slate-50'
                 }`}
               >
                 {selectedImage ? (
@@ -186,7 +186,7 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
                 ) : (
                   <>
                     <span className="text-4xl mb-4">📸</span>
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Enviar Foto de Estudo</span>
+                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Enviar Foto de Anotação/Estudo</span>
                   </>
                 )}
               </label>
@@ -198,9 +198,9 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
           <button
             onClick={() => processInput(inputType)}
             disabled={isLoading || (inputType === 'text' && !inputText) || (inputType === 'image' && !selectedImage)}
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] transition-all btn-click-effect shadow-2xl shadow-purple-600/20 disabled:opacity-30"
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] transition-all btn-click-effect shadow-2xl shadow-blue-600/20 disabled:opacity-30"
           >
-            {isLoading ? 'PROCESSANDO...' : 'SINTETIZAR MAPA MENTAL'}
+            {isLoading ? 'GERANDO PROTOCOLO VISUAL...' : 'SINTETIZAR MAPA MENTAL ELITE'}
           </button>
         )}
       </div>
@@ -208,33 +208,33 @@ const MindMapCreator: React.FC<MindMapCreatorProps> = ({ theme }) => {
       {isLoading && (
         <div className="flex flex-col items-center py-20 space-y-8 animate-in fade-in zoom-in duration-500">
           <div className="relative w-24 h-24">
-            <div className="absolute inset-0 border-4 border-purple-600/20 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="absolute inset-0 border-4 border-blue-600/20 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
           </div>
-          <p className="text-purple-600 text-[11px] font-black uppercase tracking-[0.5em] animate-pulse">{loadingStep}</p>
+          <p className="text-blue-600 text-[11px] font-black uppercase tracking-[0.5em] animate-pulse">{loadingStep}</p>
         </div>
       )}
 
       {generatedMap && (
-        <div className={`p-8 md:p-12 rounded-[4rem] border animate-in zoom-in slide-in-from-bottom-12 duration-1000 ${theme === 'dark' ? 'bg-zinc-900 border-purple-500/10' : 'bg-white border-slate-200 shadow-3xl'}`}>
+        <div className={`p-8 md:p-12 rounded-[4rem] border animate-in zoom-in slide-in-from-bottom-12 duration-1000 ${theme === 'dark' ? 'bg-zinc-900/60 border-blue-600/20' : 'bg-white border-slate-200 shadow-3xl'}`}>
           <div className="flex justify-between items-center mb-10">
             <div className="flex items-center gap-4">
-              <div className="w-1.5 h-6 bg-purple-600 rounded-full"></div>
-              <h3 className="text-xl font-black uppercase tracking-tight">MAPA GERADO</h3>
+              <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
+              <h3 className="text-xl font-black uppercase tracking-tight">MAPA ESTRATÉGICO FINALIZADO</h3>
             </div>
             <a 
               href={generatedMap} 
-              download="mapa-mental-concursomaster.png"
-              className="bg-zinc-950 text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-zinc-900 transition-all border border-white/5 shadow-xl"
+              download="mapa-mental-elite.png"
+              className="bg-blue-600 text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-all border border-white/10 shadow-xl"
             >
-              Download PNG
+              Baixar PNG
             </a>
           </div>
-          <div className="relative group cursor-zoom-in overflow-hidden rounded-[2.5rem] border border-black/5">
-            <img src={generatedMap} alt="Mapa Mental Gerado" className="w-full h-auto transition-transform duration-700 group-hover:scale-105" />
+          <div className="relative group cursor-zoom-in overflow-hidden rounded-[2.5rem] border border-black/5 bg-white/5 p-4">
+            <img src={generatedMap} alt="Mapa Mental Gerado" className="w-full h-auto transition-transform duration-700 group-hover:scale-105 rounded-2xl" />
           </div>
           <p className={`text-center mt-10 text-[10px] font-medium italic ${theme === 'dark' ? 'text-zinc-500' : 'text-slate-400'}`}>
-            * O mapa foi gerado com inteligência artificial para otimizar sua retenção visual.
+            * Este mapa foi otimizado para retenção neurovisual. Use-o para revisões rápidas de 5 minutos.
           </p>
         </div>
       )}
