@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Banca, Materia, Nivel, Question } from '../types';
 import { generateQuestion } from '../services/geminiService';
@@ -11,30 +12,17 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
   const [banca, setBanca] = useState<Banca>('FGV');
   const [materia, setMateria] = useState<Materia>('Língua Portuguesa');
   const [nivel, setNivel] = useState<Nivel>('Superior');
-  
   const [questionCount, setQuestionCount] = useState(10);
-  const [timeLimitMinutes, setTimeLimitMinutes] = useState(30);
-
   const [loading, setLoading] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [nextQuestion, setNextQuestion] = useState<Question | null>(null);
-  
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
-
   const [isSessionActive, setIsSessionActive] = useState(false);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
   const [answeredCount, setAnsweredCount] = useState(0);
-  const [correctCount, setCorrectCount] = useState(0);
-  
-  const timerRef = useRef<any>(null);
 
-  const bancas: Banca[] = [
-    'FGV', 'Cebraspe', 'FCC', 'Vunesp', 'Cesgranrio', 'Instituto AOCP', 
-    'IBFC', 'Idecan', 'Instituto Quadrix', 'IADES', 'Selecon'
-  ];
+  // Fila de pré-carregamento
+  const [questionQueue, setQuestionQueue] = useState<Question[]>([]);
+  const isPrefetching = useRef(false);
 
   const materias: Materia[] = [
     'Língua Portuguesa', 'Matemática', 'Raciocínio Lógico', 'Informática', 
@@ -48,221 +36,183 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
     'Língua Inglesa', 'Língua Espanhola', 'Políticas Públicas'
   ];
 
-  const prefetchNext = async () => {
-    if (answeredCount + 1 < questionCount) {
-      try {
-        const q = await generateQuestion(banca, materia, nivel);
-        setNextQuestion(q);
-      } catch (e) {
-        console.error("Erro no prefetch:", e);
+  const bancas: Banca[] = [
+    'FGV', 'Cebraspe', 'FCC', 'Vunesp', 'Cesgranrio', 'Instituto AOCP', 
+    'IBFC', 'Idecan', 'Instituto Quadrix', 'IADES', 'Selecon', 'Fundatec', 
+    'FAURGS', 'Objetiva Concursos', 'FEPESE', 'NC/UFPR', 'IBAM', 'Gualimp', 
+    'Consulplan', 'FUMARC', 'Comperve', 'Fadesp', 'Cetap', 'Consulpam', 
+    'UPENET', 'Itame', 'IV/UFG', 'IDIB', 'Ivin', 'Instituto Acesso'
+  ];
+
+  // Função para manter a fila com 2 questões
+  const prefetchQuestions = async (currentBanca: Banca, currentMateria: Materia, currentNivel: Nivel) => {
+    if (isPrefetching.current || questionQueue.length >= 2) return;
+    
+    isPrefetching.current = true;
+    try {
+      while (questionQueue.length < 2) {
+        const nextQ = await generateQuestion(currentBanca, currentMateria, currentNivel);
+        setQuestionQueue(prev => [...prev, nextQ]);
       }
+    } catch (e) {
+      console.warn("Erro ao pre-carregar questão:", e);
+    } finally {
+      isPrefetching.current = false;
     }
   };
 
   const startSession = async () => {
     setLoading(true);
-    setIsGameOver(false);
     setAnsweredCount(0);
-    setCorrectCount(0);
-    setTimeLeft(timeLimitMinutes * 60);
-
+    setQuestionQueue([]); // Limpa fila anterior
     try {
+      // Carrega a primeira imediatamente
       const q = await generateQuestion(banca, materia, nivel);
       setCurrentQuestion(q);
       setIsSessionActive(true);
-      prefetchNext();
-    } catch (e) {
-      alert("Houve um problema na geração da questão. Tente novamente.");
+      
+      // Inicia prefetch das próximas 2 em background
+      prefetchQuestions(banca, materia, nivel);
+    } catch (e: any) {
+      alert(e.message || "Erro ao carregar questão.");
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (isSessionActive && timeLeft > 0 && !isGameOver) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            setIsGameOver(true);
-            setIsSessionActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [isSessionActive, timeLeft, isGameOver]);
 
   const handleAnswer = (optId: string) => {
     if (showExplanation) return;
     const isCorrect = optId === currentQuestion?.correctAnswerId;
     setSelectedOption(optId);
     setShowExplanation(true);
-    setFeedback(isCorrect ? 'correct' : 'wrong');
     setAnsweredCount(prev => prev + 1);
-    if (isCorrect) setCorrectCount(prev => prev + 1);
     onQuestionAnswered(isCorrect, materia);
+    
+    // Aproveita o tempo que o usuário está lendo a explicação para garantir o buffer
+    prefetchQuestions(banca, materia, nivel);
   };
 
   const handleNext = async () => {
     if (answeredCount >= questionCount) {
-      setIsGameOver(true);
       setIsSessionActive(false);
+      setCurrentQuestion(null);
+      setQuestionQueue([]);
       return;
     }
-    
-    setLoading(true);
+
     setShowExplanation(false);
     setSelectedOption(null);
-    setFeedback(null);
-    
-    if (nextQuestion) {
-      setCurrentQuestion(nextQuestion);
-      setNextQuestion(null);
-      prefetchNext();
-      setLoading(false);
+
+    // Verifica se temos questão na fila
+    if (questionQueue.length > 0) {
+      const nextFromQueue = questionQueue[0];
+      setQuestionQueue(prev => prev.slice(1));
+      setCurrentQuestion(nextFromQueue);
+      
+      // Gatilho para repor a fila
+      prefetchQuestions(banca, materia, nivel);
     } else {
+      // Fallback: Caso a fila esteja vazia (ex: internet lenta)
+      setLoading(true);
       try {
         const q = await generateQuestion(banca, materia, nivel);
         setCurrentQuestion(q);
-        prefetchNext();
-      } catch (e) { alert("Erro ao carregar próxima questão."); }
-      finally { setLoading(false); }
+        prefetchQuestions(banca, materia, nivel);
+      } catch (e: any) { 
+        alert(e.message || "Falha na próxima questão."); 
+      } finally { 
+        setLoading(false); 
+      }
     }
   };
 
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const RadarLoading = () => (
-    <div className="flex flex-col items-center justify-center py-40 space-y-12 animate-in fade-in duration-500">
-      <div className="relative w-48 h-48">
-        {/* Radar Background */}
-        <div className="absolute inset-0 border-4 border-blue-600/10 rounded-full"></div>
-        <div className="absolute inset-4 border-2 border-blue-600/5 rounded-full"></div>
-        <div className="absolute inset-12 border border-blue-600/5 rounded-full"></div>
-        
-        {/* Radar Sweep */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 to-transparent rounded-full animate-spin duration-[3s]"></div>
-        
-        {/* Radar Center Dot */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.8)] animate-pulse"></div>
-        
-        {/* Simulating Data Points */}
-        <div className="absolute top-1/4 right-1/4 w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping opacity-60"></div>
-        <div className="absolute bottom-1/3 left-1/4 w-2 h-2 bg-blue-300 rounded-full animate-ping opacity-40 delay-700"></div>
-      </div>
-      <div className="text-center space-y-3">
-        <p className="text-blue-600 text-[11px] font-black uppercase tracking-[0.6em] animate-pulse">Escaneando Bancos de Dados</p>
-        <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-[0.3em]">Recuperando Questão: {banca}</p>
-      </div>
-    </div>
-  );
-
-  const cardClasses = `glass-card p-12 md:p-16 rounded-[4rem] border transition-all duration-700 shadow-3xl relative overflow-hidden ${theme === 'dark' ? 'border-zinc-900' : 'border-slate-200'}`;
+  const cardClasses = `glass-card p-6 md:p-12 rounded-[2rem] md:rounded-[4rem] border transition-all duration-500 shadow-2xl relative overflow-hidden ${theme === 'dark' ? 'border-zinc-900' : 'border-slate-200'}`;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-20 page-transition">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
-        <div className="space-y-3">
-          <div className="flex items-center gap-4">
-             <div className="w-2 h-10 bg-blue-600 rounded-full"></div>
-             <h2 className={`text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none glow-text`}>Arena de <span className="text-blue-600">Combate</span></h2>
-          </div>
-          <p className={`${theme === 'dark' ? 'text-zinc-500' : 'text-slate-500'} text-sm font-bold uppercase tracking-[0.3em] ml-6`}>Protocolo de Simulação Técnica Elite</p>
+    <div className="space-y-6 md:space-y-10 page-transition pb-10">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3 px-1">
+        <div className="space-y-1">
+          <h2 className="text-2xl md:text-5xl font-black uppercase tracking-tighter">Arena <span className="text-blue-600">Master</span></h2>
+          <p className="text-zinc-500 text-[8px] md:text-[9px] font-bold uppercase tracking-widest">Protocolo de Treinamento IA</p>
         </div>
-        
         {isSessionActive && (
-          <div className="flex gap-6">
-             <div className={`p-6 px-10 rounded-[2rem] border flex flex-col items-center ${theme === 'dark' ? 'bg-zinc-900/50 border-white/5 shadow-inner' : 'bg-white border-slate-200 shadow-sm'}`}>
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">SEQUÊNCIA</p>
-                <p className="font-black text-2xl leading-none">{answeredCount} <span className="text-xs text-zinc-600 font-bold">/ {questionCount}</span></p>
-             </div>
-             <div className={`p-6 px-10 rounded-[2rem] border flex flex-col items-center min-w-[140px] ${theme === 'dark' ? 'bg-zinc-900/50 border-white/5 shadow-inner' : 'bg-white border-slate-200 shadow-sm'}`}>
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">CHRONOS</p>
-                <p className={`font-mono font-black text-2xl leading-none ${timeLeft < 60 ? 'text-rose-500 animate-pulse' : 'text-blue-600'}`}>{formatTime(timeLeft)}</p>
-             </div>
+          <div className="flex items-center gap-3">
+            <div className={`text-[8px] font-black uppercase px-3 py-1.5 rounded-full border border-blue-600/30 text-blue-500 ${questionQueue.length > 0 ? 'animate-pulse' : 'opacity-0'}`}>
+              Buffer Ready ({questionQueue.length})
+            </div>
+            <div className="bg-blue-600 px-4 py-2 rounded-xl text-white text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20">
+              PROGRESSO: {answeredCount}/{questionCount}
+            </div>
           </div>
         )}
       </header>
 
-      {loading && <RadarLoading />}
-
-      {!loading && !isSessionActive && !isGameOver && (
+      {loading ? (
+        <div className="py-32 md:py-40 text-center space-y-4">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-blue-600 text-[9px] font-black tracking-[0.4em] uppercase">Consultando Módulo Gemini...</p>
+        </div>
+      ) : !isSessionActive ? (
         <div className={cardClasses}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] ml-2">ORGANIZADORA</label>
-              <select value={banca} onChange={e => setBanca(e.target.value as Banca)} className={`w-full p-6 rounded-[1.5rem] border outline-none focus:border-blue-600 transition-all font-black text-sm uppercase tracking-widest appearance-none shadow-inner ${theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-2">Banca Alvo</label>
+              <select value={banca} onChange={e => setBanca(e.target.value as Banca)} className={`w-full p-4 rounded-xl border outline-none font-black text-[10px] md:text-xs uppercase transition-all ${theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
                 {bancas.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] ml-2">ÁREA DE CONHECIMENTO</label>
-              <select value={materia} onChange={e => setMateria(e.target.value as Materia)} className={`w-full p-6 rounded-[1.5rem] border outline-none focus:border-blue-600 transition-all font-black text-sm uppercase tracking-widest appearance-none shadow-inner ${theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-2">Disciplina</label>
+              <select value={materia} onChange={e => setMateria(e.target.value as Materia)} className={`w-full p-4 rounded-xl border outline-none font-black text-[10px] md:text-xs uppercase transition-all ${theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
                 {materias.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] ml-2">CARGA DE QUESTÕES</label>
-              <input 
-                type="number" 
-                min="1" max="50"
-                value={questionCount} 
-                onChange={e => setQuestionCount(Number(e.target.value))}
-                className={`w-full p-6 rounded-[1.5rem] border outline-none focus:border-blue-600 transition-all font-black text-sm shadow-inner ${theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
-              />
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-2">Nível</label>
+              <select value={nivel} onChange={e => setNivel(e.target.value as Nivel)} className={`w-full p-4 rounded-xl border outline-none font-black text-[10px] md:text-xs uppercase transition-all ${theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                <option value="Médio">Médio</option>
+                <option value="Superior">Superior</option>
+                <option value="Técnico">Técnico</option>
+              </select>
             </div>
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] ml-2">LIMITE TEMPORAL (MIN)</label>
-              <input 
-                type="number" 
-                min="1" max="300"
-                value={timeLimitMinutes} 
-                onChange={e => setTimeLimitMinutes(Number(e.target.value))}
-                className={`w-full p-6 rounded-[1.5rem] border outline-none focus:border-blue-600 transition-all font-black text-sm shadow-inner ${theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
-              />
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-2">Quantidade</label>
+              <select value={questionCount} onChange={e => setQuestionCount(Number(e.target.value))} className={`w-full p-4 rounded-xl border outline-none font-black text-[10px] md:text-xs uppercase transition-all ${theme === 'dark' ? 'bg-zinc-950 border-white/5 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                <option value={5}>05 Questões</option>
+                <option value={10}>10 Questões</option>
+                <option value={20}>20 Questões</option>
+                <option value={30}>30 Questões</option>
+              </select>
             </div>
           </div>
-          <button 
-            onClick={startSession} 
-            disabled={loading} 
-            className="group relative w-full mt-12 bg-blue-600 text-white py-8 rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] transition-all hover:bg-blue-500 hover:scale-[1.02] active:scale-95 shadow-[0_20px_50px_rgba(37,99,235,0.4)] overflow-hidden"
-          >
-            <span className="relative z-10">{loading ? 'CONECTANDO ÀS BASES DE DADOS...' : 'INICIAR PROTOCOLO'}</span>
-            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <button onClick={startSession} className="w-full mt-8 bg-blue-600 text-white py-5 md:py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] shadow-xl shadow-blue-600/20 active:scale-95 transition-all">
+            INICIAR CICLO ELITE
           </button>
         </div>
-      )}
-
-      {!loading && isSessionActive && currentQuestion && (
-        <div className="space-y-10">
-           <div className={`${cardClasses} ${feedback === 'wrong' ? 'border-rose-500/30 ring-4 ring-rose-500/10' : feedback === 'correct' ? 'border-emerald-500/30 ring-4 ring-emerald-500/10' : ''}`}>
-              <div className="flex flex-wrap gap-4 mb-10">
-                <span className="bg-blue-600 text-white text-[9px] font-black px-6 py-2.5 rounded-full uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20">{currentQuestion.banca}</span>
-                <span className={`${theme === 'dark' ? 'bg-zinc-800 text-zinc-300' : 'bg-slate-100 text-slate-500'} text-[9px] font-black px-6 py-2.5 rounded-full uppercase tracking-[0.2em] border border-white/5`}>{currentQuestion.materia}</span>
+      ) : currentQuestion && (
+        <div className="space-y-6">
+           <div className={cardClasses}>
+              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                <span className="bg-blue-600 text-white text-[7px] md:text-[8px] font-black px-3 py-1.5 rounded-full uppercase whitespace-nowrap">{currentQuestion.banca}</span>
+                <span className="bg-zinc-800 text-zinc-400 text-[7px] md:text-[8px] font-black px-3 py-1.5 rounded-full uppercase whitespace-nowrap">{currentQuestion.materia}</span>
+                <span className="bg-indigo-600 text-white text-[7px] md:text-[8px] font-black px-3 py-1.5 rounded-full uppercase whitespace-nowrap">NÍVEL {currentQuestion.nivel.toUpperCase()}</span>
               </div>
 
-              <div className="space-y-12">
-                <h3 className={`text-2xl md:text-3xl font-extrabold leading-relaxed tracking-tight ${theme === 'dark' ? 'text-zinc-100' : 'text-slate-800'}`}>
+              <div className="space-y-6 md:space-y-8">
+                <h3 className={`text-base md:text-2xl font-bold leading-relaxed tracking-tight ${theme === 'dark' ? 'text-zinc-100' : 'text-slate-800'}`}>
                   {currentQuestion.statement}
                 </h3>
 
-                <div className="grid grid-cols-1 gap-5">
+                <div className="grid grid-cols-1 gap-3 md:gap-4">
                   {currentQuestion.options.map(opt => {
                     const isCorrect = opt.id === currentQuestion.correctAnswerId;
                     const isSelected = selectedOption === opt.id;
-                    
-                    let btnStyle = theme === 'dark' ? "border-white/5 bg-zinc-900/40 hover:bg-zinc-800/60" : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700";
+                    let btnStyle = theme === 'dark' ? "border-white/5 bg-zinc-900/40" : "border-slate-200 bg-slate-50 text-slate-700";
                     
                     if (showExplanation) {
-                      if (isCorrect) btnStyle = "border-emerald-500 bg-emerald-500/10 text-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.2)]";
-                      else if (isSelected) btnStyle = "border-rose-500 bg-rose-500/10 text-rose-400";
-                      else btnStyle = "opacity-20 border-transparent bg-transparent blur-[1px]";
+                      if (isCorrect) btnStyle = "border-emerald-500 bg-emerald-500/10 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]";
+                      else if (isSelected) btnStyle = "border-rose-500 bg-rose-500/10 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.1)]";
+                      else btnStyle = "opacity-30 border-transparent bg-transparent blur-[1px]";
                     }
 
                     return (
@@ -270,12 +220,10 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
                         key={opt.id}
                         onClick={() => handleAnswer(opt.id)}
                         disabled={showExplanation}
-                        className={`w-full text-left p-8 rounded-[2rem] border transition-all duration-300 flex items-start gap-8 btn-click-effect relative group ${btnStyle}`}
+                        className={`w-full text-left p-4 md:p-6 rounded-2xl border transition-all duration-300 flex items-start gap-4 active:scale-[0.98] focus:outline-none ${btnStyle}`}
                       >
-                        <span className={`w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl text-base font-black border transition-all duration-500 ${
-                          isSelected ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_20px_rgba(37,99,235,0.5)]' : theme === 'dark' ? 'border-zinc-800 text-zinc-500' : 'border-slate-300 text-slate-400'
-                        }`}>{opt.id}</span>
-                        <span className="text-lg md:text-xl font-bold leading-relaxed pt-2 transition-transform duration-300 group-hover:translate-x-1">{opt.text}</span>
+                        <span className={`w-9 h-9 md:w-11 md:h-11 flex-shrink-0 flex items-center justify-center rounded-xl text-[11px] md:text-xs font-black border ${isSelected ? 'bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-600/30' : 'border-zinc-800 text-zinc-500'}`}>{opt.id}</span>
+                        <span className="text-[13px] md:text-base font-medium leading-tight pt-2.5">{opt.text}</span>
                       </button>
                     );
                   })}
@@ -283,43 +231,15 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
               </div>
 
               {showExplanation && (
-                <div className={`mt-16 p-10 md:p-14 rounded-[3rem] border animate-in slide-in-from-top-8 duration-700 ${theme === 'dark' ? 'bg-zinc-950 border-white/5 shadow-inner' : 'bg-slate-100 border-slate-200'}`}>
-                  <div className="flex items-center gap-5 mb-8">
-                     <div className="w-1.5 h-8 bg-blue-600 rounded-full glow-text"></div>
-                     <p className="text-[11px] font-black text-blue-500 uppercase tracking-[0.5em]">ANÁLISE DO MENTOR</p>
-                  </div>
-                  <p className={`${theme === 'dark' ? 'text-zinc-300' : 'text-slate-700'} text-lg leading-relaxed font-medium italic opacity-90`}>{currentQuestion.explanation}</p>
-                  <button onClick={handleNext} className={`mt-12 bg-zinc-100 text-zinc-950 hover:bg-white px-16 py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] transition-all btn-click-effect shadow-2xl`}>
-                    {answeredCount >= questionCount ? 'VER RESULTADOS FINAIS' : 'PRÓXIMA FASE'}
+                <div className={`mt-8 md:mt-12 p-6 md:p-10 rounded-3xl border animate-in slide-in-from-top-4 duration-500 ${theme === 'dark' ? 'bg-zinc-950 border-white/5 shadow-inner' : 'bg-slate-100 border-slate-200'}`}>
+                  <p className="text-[8px] md:text-[9px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4 italic">Decodificação da IA Master</p>
+                  <p className={`text-xs md:text-sm leading-relaxed font-medium ${theme === 'dark' ? 'text-zinc-400' : 'text-slate-600'}`}>{currentQuestion.explanation}</p>
+                  <button onClick={handleNext} className="w-full md:w-auto mt-8 bg-zinc-100 text-zinc-950 px-12 py-4 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-white active:scale-95 transition-all">
+                    {answeredCount >= questionCount ? 'VER RESULTADOS' : 'PRÓXIMO DESAFIO'}
                   </button>
                 </div>
               )}
            </div>
-        </div>
-      )}
-
-      {!loading && isGameOver && (
-        <div className={`p-20 rounded-[5rem] text-center border space-y-12 animate-in zoom-in duration-700 shadow-3xl ${theme === 'dark' ? 'glass-card border-blue-600/20 shadow-blue-900/20' : 'bg-white border-slate-200'}`}>
-           <div className="text-9xl mb-8 filter drop-shadow-[0_0_30px_rgba(37,99,235,0.5)] animate-bounce">🏆</div>
-           <div className="space-y-4">
-              <h3 className={`text-6xl font-black uppercase tracking-tighter glow-text`}>MISSÃO CUMPRIDA</h3>
-              <p className="text-zinc-500 text-sm font-bold uppercase tracking-[0.5em]">Relatório Final de Treinamento</p>
-           </div>
-           
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-2xl mx-auto">
-              <div className={`p-10 rounded-[3rem] border ${theme === 'dark' ? 'bg-zinc-950 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
-                 <p className="text-[11px] font-black text-zinc-500 uppercase tracking-widest mb-3">TOTAL PROCESSADO</p>
-                 <p className={`text-6xl font-black italic`}>{answeredCount}</p>
-              </div>
-              <div className={`p-10 rounded-[3rem] border ${theme === 'dark' ? 'bg-emerald-600/5 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]' : 'bg-emerald-50 border-emerald-200'}`}>
-                 <p className="text-[11px] font-black text-emerald-500 uppercase tracking-widest mb-3">ACERTOS TÉCNICOS</p>
-                 <p className="text-6xl font-black text-emerald-500 italic">{correctCount}</p>
-              </div>
-           </div>
-           
-           <button onClick={() => setIsGameOver(false)} className="bg-blue-600 hover:bg-blue-500 text-white px-20 py-8 rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] transition-all btn-click-effect shadow-[0_20px_60px_rgba(37,99,235,0.5)]">
-              REINICIAR OPERAÇÃO
-           </button>
         </div>
       )}
     </div>
