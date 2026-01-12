@@ -48,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme,
             <div className="flex-1">
               <h4 className="font-black text-sm uppercase tracking-widest text-amber-600">Acesso Experimental Ativo</h4>
               <p className={`text-[11px] font-bold ${theme === 'dark' ? 'text-zinc-400' : 'text-slate-500'}`}>
-                Sua conta está em modo de teste. Aproveite as ferramentas Master antes de ativar sua assinatura.
+                Aproveite as ferramentas Master e impulsione seus estudos antes de ativar sua assinatura ilimitada.
               </p>
               <div className="w-full h-1.5 bg-zinc-800 rounded-full mt-3 overflow-hidden max-w-xs">
                 <div className="h-full bg-amber-500 transition-all duration-1000" style={{ width: `${Math.min(trialPercent, 100)}%` }}></div>
