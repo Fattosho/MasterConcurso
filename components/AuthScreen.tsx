@@ -31,7 +31,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
 
     try {
       if (isLogin) {
-        // Login
+        // LOGIN
         const { data, error: authError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -45,14 +45,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
           .eq('id', data.user.id)
           .single();
 
-        // Se logar mas não tiver perfil, permite entrar mas avisa no log
         if (profileFetchError) console.warn("Perfil não encontrado:", profileFetchError.message);
 
         onLoginSuccess({ ...data.user, profile });
       } else {
-        // Registro
+        // REGISTRO
         if (password !== confirmPassword) throw new Error("As senhas não coincidem.");
-        if (whatsapp.length < 10) throw new Error("Informe um WhatsApp válido.");
+        if (whatsapp.length < 8) throw new Error("Informe um WhatsApp válido.");
         
         // 1. Criar usuário no Auth
         const { data, error: authError } = await supabase.auth.signUp({
@@ -60,13 +59,21 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
           password,
         });
         
-        if (authError) throw authError;
+        // Se o erro for "User already registered", o usuário pode ter sido criado no Auth na tentativa anterior que deu erro no DB
+        if (authError) {
+          if (authError.message.includes("already registered")) {
+            setError("Este e-mail já está em uso. Tente fazer login ou use outro e-mail.");
+            setLoading(false);
+            return;
+          }
+          throw authError;
+        }
 
         if (data.user) {
-          // 2. Salvar dados na sua tabela de perfis (Nome, Email, WhatsApp)
+          // 2. Tentar salvar na tabela profiles
           const { error: profileError } = await supabase
             .from('profiles')
-            .insert([
+            .upsert([
               { 
                 id: data.user.id, 
                 full_name: fullName, 
@@ -76,13 +83,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
             ]);
           
           if (profileError) {
-            console.error("Erro detalhado do banco:", profileError);
-            // Agora mostramos o erro real do Supabase para você saber se é falta de tabela ou RLS
-            throw new Error(`Auth OK, mas DB erro: ${profileError.message}`);
+            console.error("Erro no DB:", profileError);
+            // Se der erro aqui, o usuário já existe no Auth. 
+            // Instruímos ele a tentar logar ou informamos o erro técnico.
+            throw new Error(`Conta criada, mas erro ao salvar perfil: ${profileError.message}. Tente fazer login.`);
           }
         }
 
-        alert("Cadastro realizado com sucesso! Use suas credenciais para entrar.");
+        alert("Cadastro realizado com sucesso! Agora você pode entrar.");
         setIsLogin(true);
       }
     } catch (err: any) {
@@ -102,7 +110,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050508] overflow-y-auto px-4 py-8">
-      {/* Background Decorativo */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }}></div>
@@ -120,25 +127,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         </div>
 
         <div className="glass-card p-8 md:p-10 rounded-[3rem] border border-white/5 shadow-2xl">
-          {!isSupabaseConfigured && (
-            <div className="mb-8 p-6 rounded-[1.5rem] bg-amber-500/10 border border-amber-500/20 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="text-lg">⚙️</span>
-                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Aviso de Configuração</p>
-              </div>
-              <p className="text-[9px] text-zinc-400 font-medium leading-relaxed uppercase tracking-tight">
-                Chaves do Supabase não configuradas. Verifique seu dashboard no Netlify.
-              </p>
-              <button 
-                onClick={() => onLoginSuccess({ email: 'visitante@local.dev', profile: { full_name: 'Usuário Local' } })}
-                className="w-full py-3 bg-zinc-900 border border-white/5 rounded-xl text-[9px] font-black text-white uppercase tracking-widest hover:bg-zinc-800 transition-all"
-              >
-                Continuar em Modo Offline
-              </button>
-            </div>
-          )}
-
-          {/* Tabs */}
           <div className="flex bg-zinc-950/50 p-1.5 rounded-2xl mb-10 border border-white/5">
             <button 
               onClick={() => setIsLogin(true)}
@@ -229,7 +217,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
             )}
 
             <button 
-              disabled={loading || (!isSupabaseConfigured && !error)}
+              disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] transition-all btn-click-effect shadow-xl shadow-blue-600/30 disabled:opacity-50"
             >
               {loading ? (
