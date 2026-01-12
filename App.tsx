@@ -75,21 +75,33 @@ const App: React.FC = () => {
     setActiveTab('dashboard');
   };
 
+  // Função para limpar cache e forçar login em caso de travamento
+  const handleForceReset = async () => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      await supabase.auth.signOut();
+    } catch (e) {}
+    window.location.reload();
+  };
+
   const initAuth = useCallback(async () => {
     if (!isSupabaseConfigured) {
       setLoading(false);
       return;
     }
 
+    // Timeout para mostrar opções de erro se a sessão travar
     authTimeoutRef.current = setTimeout(() => {
       setAuthError(true);
-    }, 8000);
+    }, 4000);
 
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
         console.error("Erro na sessão Supabase:", sessionError);
+        setLoading(false);
         return;
       }
 
@@ -134,22 +146,33 @@ const App: React.FC = () => {
   const usageLimitReached = usageAmount >= API_LIMIT_CONFIG.MONTHLY_LIMIT_BRL;
 
   if (loading) return (
-    <div className="h-screen w-screen bg-[#050507] flex flex-col items-center justify-center gap-6 p-10">
-      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      <div className="text-center animate-in fade-in duration-1000">
+    <div className="h-screen w-screen bg-[#050507] flex flex-col items-center justify-center gap-6 p-10 overflow-hidden">
+      <div className="relative">
+        <div className="w-16 h-16 border-4 border-blue-600/20 rounded-full"></div>
+        <div className="absolute inset-0 w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      
+      <div className="text-center space-y-2">
         <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.5em] animate-pulse">Autenticando Identidade Digital</p>
-        <p className="text-[8px] text-zinc-600 uppercase tracking-widest mt-2">ConcursoMaster ELITE Edition v1.0</p>
-        {authError && (
-          <div className="mt-10 space-y-4 animate-in slide-in-from-bottom-4">
-             <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">A conexão está demorando mais que o esperado...</p>
-             <button 
-                onClick={() => window.location.reload()}
-                className="px-8 py-3 bg-blue-600/10 border border-blue-600/30 rounded-xl text-[10px] font-black uppercase text-blue-500 tracking-widest hover:bg-blue-600/20 transition-all active:scale-95"
-              >
-                🔄 Reiniciar Terminal
-              </button>
-          </div>
-        )}
+        <p className="text-[8px] text-zinc-600 uppercase tracking-widest">ConcursoMaster ELITE Edition v1.0</p>
+      </div>
+
+      <div className={`mt-8 space-y-4 transition-all duration-1000 ${authError ? 'opacity-100' : 'opacity-0'}`}>
+         <div className="flex flex-col gap-3">
+           <button 
+              onClick={() => window.location.reload()}
+              className="px-8 py-3 bg-blue-600/10 border border-blue-600/30 rounded-xl text-[10px] font-black uppercase text-blue-500 tracking-widest hover:bg-blue-600/20 transition-all active:scale-95"
+            >
+              🔄 Reiniciar Terminal
+            </button>
+            <button 
+              onClick={handleForceReset}
+              className="px-8 py-3 bg-rose-600/5 border border-rose-600/20 rounded-xl text-[9px] font-black uppercase text-rose-500/60 tracking-widest hover:bg-rose-600/10 transition-all active:scale-95"
+            >
+              ⚠️ Limpar Acesso e Refazer Login
+            </button>
+         </div>
+         <p className="text-[7px] text-zinc-700 font-bold uppercase tracking-widest text-center">Solução para sessões expiradas no navegador</p>
       </div>
     </div>
   );
