@@ -75,20 +75,6 @@ const App: React.FC = () => {
     window.location.reload();
   };
 
-  const handleSelectApiKey = async () => {
-    try {
-      const aistudio = (window as any).aistudio;
-      if (aistudio) {
-        await aistudio.openSelectKey();
-        window.location.reload();
-      } else {
-        alert("Ambiente AI Studio não detectado.");
-      }
-    } catch (e) {
-      console.error("Erro ao abrir seletor de chaves:", e);
-    }
-  };
-
   const initAuth = useCallback(async () => {
     if (!isSupabaseConfigured) {
       setLoading(false);
@@ -136,26 +122,22 @@ const App: React.FC = () => {
   const usageAmount = profile?.monthly_api_usage ?? 0;
   const canAccessAI = isSubscriber || (usageAmount < API_LIMIT_CONFIG.TRIAL_LIMIT_BRL);
 
-  // NOVO ESTADO DE CARREGAMENTO: BOTÃO VERMELHO PARA REPARO SE TRAVAR
   if (loading || authError) return (
     <div className="h-screen w-screen bg-[#050507] flex flex-col items-center justify-center p-8 text-center">
       {!authError ? (
         <div className="space-y-8 animate-pulse">
            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-           <p className="text-[10px] font-black text-white uppercase tracking-[0.4em]">Sincronizando Terminal Elite...</p>
+           <p className="text-[10px] font-black text-white uppercase tracking-[0.4em]">Iniciando Protocolos...</p>
         </div>
       ) : (
-        <div className="max-w-xs w-full space-y-8 animate-in zoom-in duration-500">
+        <div className="max-w-xs w-full space-y-6 animate-in zoom-in duration-500">
            <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto text-3xl mb-4">⚠️</div>
-           <div className="space-y-2">
-              <h2 className="text-xl font-black text-white uppercase tracking-tighter">CONEXÃO INSTÁVEL</h2>
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">Detectamos um atraso na rede. Clique no botão abaixo para restaurar e refazer o login.</p>
-           </div>
+           <h2 className="text-xl font-black text-white uppercase tracking-tighter">ERRO DE CONEXÃO</h2>
            <button 
              onClick={handleResetAndReload}
              className="w-full bg-rose-600 hover:bg-rose-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-rose-600/30 transition-all active:scale-95"
            >
-             LIMPAR CACHE E REENTRAR
+             REPARAR LOGIN
            </button>
         </div>
       )}
@@ -197,9 +179,7 @@ const App: React.FC = () => {
         subjectStats: { ...stats, [subject]: { total: current.total + 1, correct: current.correct + (isCorrect ? 1 : 0) } }
       };
       
-      // Salva no Supabase
       if (user?.id) saveUserPerformance(user.id, newPerf);
-      
       return newPerf;
     });
   };
@@ -209,11 +189,6 @@ const App: React.FC = () => {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} theme={theme} toggleTheme={toggleTheme} user={user} onLogout={handleLogout} />
       <main className="flex-1 p-6 md:p-12 overflow-y-auto">
         <div className="max-w-6xl mx-auto w-full">
-          <div className="flex justify-end mb-4">
-             <button onClick={handleSelectApiKey} className="text-[8px] font-black text-zinc-600 hover:text-blue-500 uppercase tracking-widest opacity-40 hover:opacity-100 transition-all">
-                Quota AI: Ajustar Chave
-             </button>
-          </div>
           {activeTab === 'dashboard' ? (
              <Dashboard performance={performance} setActiveTab={setActiveTab} theme={theme} profile={profile} onProfileUpdate={refreshProfile} />
           ) : !canAccessAI ? (

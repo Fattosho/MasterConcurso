@@ -77,13 +77,6 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
     }
   };
 
-  const handleSelectApiKey = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
-      window.location.reload();
-    }
-  };
-
   const handleAnswer = (optId: string) => {
     if (showExplanation) return;
     const isCorrect = optId === currentQuestion?.correctAnswerId;
@@ -151,16 +144,8 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
            <div className="text-4xl">⚠️</div>
            <div className="space-y-2">
               <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Falha Crítica na Geração</p>
-              <p className="text-xs font-bold text-zinc-400 max-w-sm mx-auto leading-relaxed">{error}</p>
+              <p className="text-xs font-bold text-zinc-400 max-w-sm mx-auto leading-relaxed">{error.includes('QUOTA') ? 'Limite de processamento atingido. Tente novamente em alguns minutos.' : error}</p>
            </div>
-           {error.includes('QUOTA') && (
-              <button 
-                onClick={handleSelectApiKey}
-                className="bg-blue-600 text-white px-8 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-              >
-                Conectar minha própria Chave (Google)
-              </button>
-           )}
            <button onClick={() => { setError(null); setIsSessionActive(false); }} className="block mx-auto text-[8px] font-black text-zinc-600 uppercase tracking-widest underline underline-offset-4">
               Tentar Novamente
            </button>

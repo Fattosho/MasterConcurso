@@ -32,7 +32,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
 
     try {
       if (isLogin) {
-        // --- LOGIN ---
+        if (!email.trim() || !password.trim()) {
+          throw new Error("Preencha e-mail e senha para acessar.");
+        }
+
         const { data, error: authError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -53,9 +56,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
 
         onLoginSuccess({ ...data.user, profile });
       } else {
-        // --- ASSINATURA (REGISTRO + VENDA) ---
+        if (!fullName.trim()) throw new Error("O campo Nome Completo é obrigatório.");
+        if (!email.trim()) throw new Error("O campo E-mail é obrigatório.");
+        if (!whatsapp.trim()) throw new Error("O campo WhatsApp é obrigatório.");
+        if (!password.trim()) throw new Error("O campo Senha é obrigatório.");
+        if (!confirmPassword.trim()) throw new Error("A confirmação de senha é obrigatória.");
+        
         if (password !== confirmPassword) throw new Error("As senhas não coincidem.");
-        if (whatsapp.length < 8) throw new Error("Informe um WhatsApp válido.");
+        if (whatsapp.replace(/\D/g, '').length < 10) throw new Error("Informe um WhatsApp válido com DDD.");
         
         const { data, error: authError } = await supabase.auth.signUp({
           email,
@@ -86,19 +94,21 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
     }
   };
 
-  const inputStyle = `w-full p-4 rounded-2xl border outline-none transition-all duration-300 font-medium text-sm ${
+  const inputStyle = `w-full p-4 md:p-5 rounded-2xl border outline-none transition-all duration-500 font-medium text-base md:text-sm ${
     theme === 'dark' 
-      ? 'bg-zinc-950/50 border-white/10 text-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600' 
-      : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
+      ? 'bg-zinc-950/40 border-white/5 text-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 placeholder:text-zinc-700' 
+      : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10'
   }`;
 
   const labelStyle = "block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 ml-1";
 
   if (showPaymentStep) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050508] px-4">
-        <div className="max-w-[480px] w-full glass-card p-10 md:p-14 rounded-[3rem] border border-blue-600/30 text-center space-y-8 animate-in zoom-in duration-500 shadow-[0_0_100px_rgba(37,99,235,0.1)]">
-          <div className="w-24 h-24 bg-blue-600/10 rounded-full mx-auto flex items-center justify-center text-5xl animate-bounce">
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#050508] px-4 py-12 overflow-x-hidden relative">
+        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#3b82f6 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }}></div>
+        
+        <div className="max-w-[480px] w-full glass-card p-10 md:p-14 rounded-[3rem] border border-blue-600/30 text-center space-y-8 animate-in zoom-in duration-500 shadow-[0_0_100px_rgba(37,99,235,0.1)] relative">
+          <div className="w-24 h-24 bg-blue-600/10 rounded-full mx-auto flex items-center justify-center text-5xl animate-bounce shadow-[0_0_30px_rgba(37,99,235,0.2)]">
             💳
           </div>
           <div className="space-y-4">
@@ -106,18 +116,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
             <p className="text-zinc-400 text-xs font-bold leading-relaxed">
               Para liberar o acesso <span className="text-white">Ilimitado</span> às questões, redações e mentorias por IA, finalize seu pagamento na Kiwify.
             </p>
-            <div className="bg-zinc-950 p-4 rounded-2xl border border-white/5">
-              <p className="text-[10px] text-zinc-500 uppercase font-black">Plano Master Profissional</p>
-              <p className="text-2xl font-black text-white">R$ 47,00<span className="text-xs text-zinc-500 font-normal">/mês</span></p>
-            </div>
           </div>
           
           <div className="space-y-4">
             <a 
               href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} 
               target="_blank" 
-              className="block w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-600/30 active:scale-95"
+              className="group relative block w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-600/30 active:scale-95 overflow-hidden"
             >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               FINALIZAR ASSINATURA AGORA
             </a>
             <button 
@@ -127,93 +134,111 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
               Já paguei, quero entrar
             </button>
           </div>
-          
-          <p className="text-[8px] text-zinc-600 uppercase font-bold tracking-widest">Pagamento 100% Seguro via Kiwify</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050508] overflow-y-auto px-4 py-8">
-      <div className="relative z-10 w-full max-w-[480px] page-transition">
-        <div className="text-center mb-10">
-          <div className="inline-block w-20 h-20 bg-blue-600 rounded-[2rem] mb-6 flex items-center justify-center shadow-2xl shadow-blue-600/40">
-            <span className="text-white font-black text-4xl italic">C</span>
+    <div className="min-h-screen w-full flex flex-col items-center justify-start md:justify-center bg-[#050508] px-4 py-12 md:py-8 relative overflow-x-hidden">
+      {/* Background Grid & FX */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none"></div>
+
+      <div className="relative z-10 w-full max-w-[480px] animate-in fade-in slide-in-from-bottom-6 duration-700">
+        {/* LOGO CENTRALIZADA COM EFEITO - Ajuste de Margem Superior para evitar corte */}
+        <div className="text-center mb-10 group mt-4 md:mt-0">
+          <div className="relative inline-block mb-8">
+            <div className="absolute inset-0 bg-blue-600 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity animate-pulse"></div>
+            <div className="relative w-20 h-20 md:w-24 md:h-24 bg-blue-600 rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-600/40 border border-white/10 transform transition-transform group-hover:scale-105 duration-500">
+              <span className="text-white font-black text-4xl md:text-5xl italic tracking-tighter">C</span>
+            </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tighter uppercase glow-text">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tighter uppercase glow-text">
             CONCURSO<span className="text-blue-600">MASTER</span>
           </h1>
-          <p className="text-zinc-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-2 italic">Inteligência Competitiva de Elite</p>
+          <div className="w-10 h-1 bg-blue-600/30 mx-auto mt-4 rounded-full"></div>
         </div>
 
-        <div className="glass-card p-8 md:p-10 rounded-[3.5rem] border border-white/5 shadow-2xl">
-          <div className="flex bg-zinc-950/50 p-1.5 rounded-2xl mb-10 border border-white/5">
-            <button onClick={() => setIsLogin(true)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${isLogin ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}>Fazer Login</button>
-            <button onClick={() => setIsLogin(false)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${!isLogin ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}>Assinar</button>
+        <div className="glass-card p-6 md:p-12 rounded-[3rem] md:rounded-[4rem] border border-white/5 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] relative overflow-hidden">
+          {/* Efeito de brilho na borda superior */}
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-600/40 to-transparent"></div>
+
+          <div className="flex bg-zinc-950/80 p-1 rounded-2xl mb-8 border border-white/5 shadow-inner">
+            <button 
+              onClick={() => setIsLogin(true)} 
+              className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 ${isLogin ? 'bg-blue-600 text-white shadow-[0_5px_15px_rgba(37,99,235,0.4)]' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+              Entrar
+            </button>
+            <button 
+              onClick={() => setIsLogin(false)} 
+              className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 ${!isLogin ? 'bg-blue-600 text-white shadow-[0_5px_15px_rgba(37,99,235,0.4)]' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+              Assinar
+            </button>
           </div>
 
-          {!isLogin && (
-            <div className="mb-8 p-4 bg-blue-600/5 border border-blue-600/20 rounded-2xl text-center">
-               <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1">Oferta Especial</p>
-               <p className="text-lg font-black text-white uppercase tracking-tighter">PLANO MASTER R$ 47/MÊS</p>
-            </div>
-          )}
-
-          <form onSubmit={handleAuth} className="space-y-6">
+          <form onSubmit={handleAuth} className="space-y-5">
             {!isLogin && (
-              <div>
-                <label className={labelStyle}>Nome Completo</label>
-                <input type="text" required placeholder="Ex: João Silva" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputStyle} />
+              <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                <label className={labelStyle}>Nome Completo *</label>
+                <input type="text" placeholder="João Silva" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputStyle} />
               </div>
             )}
             <div>
-              <label className={labelStyle}>E-mail</label>
-              <input type="email" required placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputStyle} />
+              <label className={labelStyle}>E-mail *</label>
+              <input type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputStyle} />
             </div>
             {!isLogin && (
-              <div>
-                <label className={labelStyle}>WhatsApp (DDD + Número)</label>
-                <input type="tel" required placeholder="11999999999" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className={inputStyle} />
+              <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                <label className={labelStyle}>WhatsApp *</label>
+                <input type="tel" placeholder="11 99999-9999" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className={inputStyle} />
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid grid-cols-1 gap-5 ${isLogin ? '' : 'md:grid-cols-2'}`}>
               <div>
-                <label className={labelStyle}>Senha</label>
-                <input type="password" required placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className={inputStyle} />
+                <label className={labelStyle}>Senha *</label>
+                <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className={inputStyle} />
               </div>
               {!isLogin && (
-                <div>
-                  <label className={labelStyle}>Confirmar Senha</label>
-                  <input type="password" required placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputStyle} />
+                <div className="animate-in fade-in slide-in-from-left-4 duration-300">
+                  <label className={labelStyle}>Confirmar *</label>
+                  <input type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputStyle} />
                 </div>
               )}
             </div>
 
             {error && (
-              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-black uppercase text-center animate-pulse">
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-black uppercase text-center animate-bounce">
                 {error}
               </div>
             )}
 
-            <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-[1.5rem] font-black text-[11px] uppercase tracking-[0.2em] transition-all disabled:opacity-50 shadow-xl shadow-blue-600/30">
-              {loading ? "Processando..." : (isLogin ? 'Entrar no Terminal' : 'ASSINAR PLANO MASTER - R$ 47/MÊS')}
+            <button 
+              disabled={loading} 
+              className="group relative w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-[1.5rem] md:rounded-[2rem] font-black text-[11px] uppercase tracking-[0.2em] transition-all disabled:opacity-50 shadow-2xl shadow-blue-600/30 active:scale-[0.98] overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  <span>Processando...</span>
+                </div>
+              ) : (isLogin ? 'Entrar no Terminal' : 'ASSINAR AGORA')}
             </button>
           </form>
 
           {isLogin && (
             <p className="mt-8 text-center text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-              Novo por aqui? <button onClick={() => setIsLogin(false)} className="text-blue-500 hover:text-blue-400">Começar Assinatura</button>
+              Ainda não tem conta? <button onClick={() => setIsLogin(false)} className="text-blue-500 hover:text-blue-400 underline underline-offset-4 transition-colors">Assinar Plano</button>
             </p>
           )}
         </div>
         
-        <div className="mt-10 flex items-center justify-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all">
-          <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Segurança:</div>
-          <div className="text-[10px] font-black text-white">SSL</div>
-          <div className="text-[10px] font-black text-white">Supabase</div>
-          <div className="text-[10px] font-black text-white">Kiwify</div>
-        </div>
+        <p className="mt-8 text-center text-[8px] text-zinc-700 font-black uppercase tracking-[0.4em] opacity-40">
+          Protocolo v2.9 • Encriptação de Ponta a Ponta
+        </p>
       </div>
     </div>
   );
