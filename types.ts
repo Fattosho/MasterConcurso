@@ -19,6 +19,13 @@ export type Materia =
 
 export type Nivel = 'Médio' | 'Superior' | 'Técnico';
 
+export interface UserProfile {
+  id: string;
+  full_name: string;
+  email: string;
+  whatsapp: string;
+}
+
 export interface Question {
   id: string;
   banca: Banca;
