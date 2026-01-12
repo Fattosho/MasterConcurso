@@ -23,7 +23,6 @@ const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme,
 
   const isSubscriber = profile?.is_active_subscriber === true;
   const usageAmount = profile?.monthly_api_usage ?? 0;
-  const trialRemaining = Math.max(0, API_LIMIT_CONFIG.TRIAL_LIMIT_BRL - usageAmount);
   const trialPercent = (usageAmount / API_LIMIT_CONFIG.TRIAL_LIMIT_BRL) * 100;
 
   const chartColors = theme === 'dark' 
@@ -46,13 +45,13 @@ const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme,
         }`}>
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-amber-600/20 rounded-2xl flex items-center justify-center text-3xl">⏳</div>
-            <div>
+            <div className="flex-1">
               <h4 className="font-black text-sm uppercase tracking-widest text-amber-600">Acesso Experimental Ativo</h4>
               <p className={`text-[11px] font-bold ${theme === 'dark' ? 'text-zinc-400' : 'text-slate-500'}`}>
-                Restam <span className="text-amber-500 font-black">R$ {trialRemaining.toFixed(2)}</span> de processamento gratuito para seu teste.
+                Sua conta está em modo de teste. Aproveite as ferramentas Master antes de ativar sua assinatura.
               </p>
-              <div className="w-full h-1.5 bg-zinc-800 rounded-full mt-3 overflow-hidden">
-                <div className="h-full bg-amber-500 transition-all duration-1000" style={{ width: `${trialPercent}%` }}></div>
+              <div className="w-full h-1.5 bg-zinc-800 rounded-full mt-3 overflow-hidden max-w-xs">
+                <div className="h-full bg-amber-500 transition-all duration-1000" style={{ width: `${Math.min(trialPercent, 100)}%` }}></div>
               </div>
             </div>
           </div>

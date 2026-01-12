@@ -6,7 +6,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const KIWIFY_CONFIG = {
   ACCOUNT_ID: 'm46hUHaAvdwgjCW',
-  SUBSCRIPTION_LINK: 'https://pay.kiwify.com.br/m46hUHaAvdwgjCW?off=SUBS47' 
+  SUBSCRIPTION_LINK: 'https://pay.kiwify.com.br/m46hUHaAvdwgjCW' 
 };
 
 export const API_LIMIT_CONFIG = {
