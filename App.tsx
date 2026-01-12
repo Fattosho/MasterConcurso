@@ -12,6 +12,8 @@ import AuthScreen from './components/AuthScreen';
 import { UserPerformance, UserProfile } from './types';
 import { supabase, isSupabaseConfigured, KIWIFY_CONFIG, API_LIMIT_CONFIG } from './services/supabaseClient';
 
+// Removed redundant declare global for window.aistudio as it conflicts with the environment's existing AIStudio type definition.
+
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -67,13 +69,31 @@ const App: React.FC = () => {
     } catch (e) {}
   };
 
-  const handleForceReset = async () => {
+  const handleOptimizeAndReload = async () => {
     try {
       localStorage.clear();
       sessionStorage.clear();
-      await supabase.auth.signOut();
-    } catch (e) {}
-    window.location.reload();
+      await supabase.auth.signOut().catch(() => {});
+      window.location.href = window.location.origin;
+    } catch (e) {
+      window.location.reload();
+    }
+  };
+
+  const handleSelectApiKey = async () => {
+    try {
+      // Access aistudio directly as it is assumed to be provided by the environment
+      const aistudio = (window as any).aistudio;
+      if (aistudio) {
+        await aistudio.openSelectKey();
+        // After selection, we reload to ensure the new key is available in the environment
+        window.location.reload();
+      } else {
+        alert("Ambiente AI Studio não detectado.");
+      }
+    } catch (e) {
+      console.error("Erro ao abrir seletor de chaves:", e);
+    }
   };
 
   const initAuth = useCallback(async () => {
@@ -82,10 +102,9 @@ const App: React.FC = () => {
       return;
     }
 
-    // Timer para exibir botões de emergência se o login demorar mais de 2s
     authTimeoutRef.current = setTimeout(() => {
       setAuthError(true);
-    }, 2000);
+    }, 3000);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -127,34 +146,46 @@ const App: React.FC = () => {
   if (loading) return (
     <div className="h-screen w-screen bg-[#050507] flex flex-col items-center justify-center p-8 overflow-hidden text-center">
       <div className="relative mb-8">
-        <div className="w-20 h-20 border-4 border-blue-600/10 rounded-full"></div>
-        <div className="absolute inset-0 w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-24 h-24 border-4 border-blue-600/5 rounded-full"></div>
+        <div className="absolute inset-0 w-24 h-24 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+           <span className="text-blue-600 animate-pulse font-black italic text-xl">C</span>
+        </div>
       </div>
       
-      <div className="space-y-3 mb-12">
-        <p className="text-[12px] font-black text-blue-600 uppercase tracking-[0.6em] animate-pulse">Autenticando Identidade</p>
-        <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Aguardando Resposta do Servidor Elite</p>
+      <div className="space-y-4 mb-12">
+        <p className="text-[14px] font-black text-white uppercase tracking-[0.4em]">Iniciando Terminal Elite</p>
+        <div className="flex justify-center gap-1">
+           {[...Array(3)].map((_, i) => (
+             <div key={i} className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}></div>
+           ))}
+        </div>
+        <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold max-w-xs mx-auto leading-relaxed">Sincronizando protocolos de IA e segurança avançada...</p>
       </div>
 
-      <div className={`space-y-4 w-full max-w-xs transition-all duration-700 ${authError ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-         <div className="p-5 bg-zinc-900/50 border border-white/5 rounded-[2.5rem] space-y-4">
-            <p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest leading-relaxed px-4">
-              Sessão travada ou e-mail não confimado?
-            </p>
+      <div className={`space-y-4 w-full max-w-sm transition-all duration-1000 transform ${authError ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95 pointer-events-none'}`}>
+         <div className="p-8 bg-zinc-900/30 border border-white/5 rounded-[3rem] backdrop-blur-xl space-y-6 shadow-2xl shadow-blue-600/5">
+            <div className="space-y-2">
+               <p className="text-[10px] text-blue-500 font-black uppercase tracking-[0.3em]">Otimização Sugerida</p>
+               <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">Detectamos que sua sessão de segurança precisa ser renovada ou a quota de IA excedeu.</p>
+            </div>
+            
             <button 
-              onClick={handleForceReset}
-              className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-rose-600/30 transition-all active:scale-95"
+              onClick={handleOptimizeAndReload}
+              className="group relative w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/40 transition-all active:scale-95 overflow-hidden"
             >
-              ⚠️ LIMPAR ACESSO E REFAZER LOGIN
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+              OTIMIZAR E ENTRAR NO TERMINAL
             </button>
+
             <button 
-              onClick={() => window.location.reload()}
-              className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
+              onClick={handleSelectApiKey}
+              className="w-full text-[9px] font-black text-zinc-500 hover:text-blue-400 uppercase tracking-widest transition-colors"
             >
-              🔄 Reiniciar Terminal
+              ⚙️ CONFIGURAR CHAVE PRÓPRIA (GOOGLE AI STUDIO)
             </button>
          </div>
-         <p className="text-[7px] text-zinc-700 font-bold uppercase tracking-[0.3em]">RECOMENDADO PARA RESOLVER LOOPS DE LOGIN</p>
+         <p className="text-[8px] text-zinc-700 font-bold uppercase tracking-[0.5em]">Protocolo v2.6 - Resiliência de IA</p>
       </div>
     </div>
   );
@@ -166,7 +197,7 @@ const App: React.FC = () => {
       <div className="w-24 h-24 bg-blue-600/10 rounded-full flex items-center justify-center text-5xl mb-8 animate-bounce">🚀</div>
       <h2 className="text-3xl font-black uppercase mb-4 tracking-tighter">Limites de <span className="text-blue-600">Modo Trial</span> Atingidos</h2>
       <p className="text-zinc-500 text-[11px] font-bold mb-10 max-w-xs leading-relaxed">
-        Você explorou o potencial máximo do modo gratuito. Migre para o Plano Master para continuar sua jornada de aprovação.
+        Você explorou o potencial máximo do modo gratuito. Migre para o Plano Master para continuar sua jornada de aprovação com IA ilimitada.
       </p>
       <div className="w-full max-w-sm space-y-6">
         <div className="bg-zinc-950 p-6 rounded-3xl border border-white/5 shadow-inner">
@@ -176,8 +207,8 @@ const App: React.FC = () => {
         <a href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} target="_blank" className="block w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-blue-600/30 transition-all active:scale-95">
           DESBLOQUEAR TUDO AGORA
         </a>
-        <button onClick={refreshProfile} className="w-full text-[9px] font-black text-zinc-600 uppercase tracking-widest hover:text-blue-500 transition-all underline underline-offset-4">
-          Já sou assinante? Sincronizar Agora
+        <button onClick={handleSelectApiKey} className="w-full text-[9px] font-black text-zinc-600 hover:text-blue-500 uppercase tracking-widest transition-all">
+          Usar Chave Própria (Avançado)
         </button>
       </div>
     </div>
@@ -188,6 +219,11 @@ const App: React.FC = () => {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} theme={theme} toggleTheme={toggleTheme} user={user} onLogout={handleLogout} />
       <main className="flex-1 p-6 md:p-12 overflow-y-auto">
         <div className="max-w-6xl mx-auto w-full">
+          <div className="flex justify-end mb-4">
+             <button onClick={handleSelectApiKey} className="text-[8px] font-black text-zinc-600 hover:text-blue-500 uppercase tracking-widest opacity-40 hover:opacity-100 transition-all">
+                Quota AI: Ajustar Chave
+             </button>
+          </div>
           {activeTab === 'dashboard' ? (
              <Dashboard performance={performance} setActiveTab={setActiveTab} theme={theme} profile={profile} onProfileUpdate={refreshProfile} />
           ) : !canAccessAI ? (

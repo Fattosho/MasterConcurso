@@ -10,19 +10,45 @@ const getUserId = async () => {
   } catch (e) { return null; }
 };
 
-// Inicializa a IA sempre com a chave mais atual
-const getAIInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Inicializa a IA sempre criando uma nova instância para pegar o process.env.API_KEY atualizado
+const getAIInstance = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    console.warn("Aviso: API_KEY não configurada ou vazia.");
+  }
+  return new GoogleGenAI({ apiKey: apiKey || '' });
+};
+
+/**
+ * Função auxiliar para executar chamadas com retentativa exponencial
+ */
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const isQuotaError = error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED');
+    
+    if (retries > 0 && !isQuotaError) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return withRetry(fn, retries - 1, delay * 2);
+    }
+    
+    if (isQuotaError) {
+      throw new Error("QUOTA_EXHAUSTED: O limite de requisições da IA foi atingido. Tente novamente em instantes ou conecte sua própria chave nas configurações.");
+    }
+    throw error;
+  }
+}
 
 export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Nivel): Promise<Question> => {
-  const ai = getAIInstance();
   const userId = await getUserId();
-  
   if (userId) trackApiUsage(userId, 'GENERATE_QUESTION').catch(() => {});
 
-  try {
+  return withRetry(async () => {
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere uma questão de múltipla escolha inédita para concursos. BANCA: "${banca}" MATÉRIA: "${materia}" NÍVEL: "${nivel}". Responda APENAS o JSON.`,
+      contents: `Gere uma questão de múltipla escolha inédita para concursos no Brasil. BANCA: "${banca}" MATÉRIA: "${materia}" NÍVEL: "${nivel}". Use 5 alternativas (A-E). Responda exclusivamente em JSON puro.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -38,27 +64,25 @@ export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Ni
       }
     });
 
-    const data = JSON.parse(response.text || "{}");
+    if (!response.text) throw new Error("Resposta vazia da IA.");
+    const data = JSON.parse(response.text);
     return { ...data, id: `Q-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, banca, materia, nivel };
-  } catch (error) {
-    console.error("Erro IA Questão:", error);
-    throw new Error("Falha na Inteligência Artificial ao gerar questão.");
-  }
+  });
 };
 
 export const evaluateEssayImage = async (base64Image: string, theme: string, banca: Banca) => {
-  const ai = getAIInstance();
   const userId = await getUserId();
   if (userId) trackApiUsage(userId, 'EVALUATE_ESSAY').catch(() => {});
 
-  const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
-  try {
+  return withRetry(async () => {
+    const ai = getAIInstance();
+    const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { data: pureBase64, mimeType: 'image/jpeg' } },
-          { text: `Avalie esta redação para a banca ${banca} sobre o tema "${theme}". Retorne a análise em JSON.` }
+          { text: `Avalie esta redação como corretor da banca ${banca} sobre o tema "${theme}". Retorne a análise completa em JSON.` }
         ]
       },
       config: {
@@ -77,37 +101,33 @@ export const evaluateEssayImage = async (base64Image: string, theme: string, ban
       }
     });
     return JSON.parse(response.text || "{}");
-  } catch (error) {
-    throw new Error("Falha na análise óptica da redação.");
-  }
+  });
 };
 
 export const generateMindMapFromDescription = async (prompt: string): Promise<string | null> => {
-  const ai = getAIInstance();
   const userId = await getUserId();
   if (userId) trackApiUsage(userId, 'GENERATE_MINDMAP').catch(() => {});
 
-  try {
+  return withRetry(async () => {
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: `Professional mind map about: ${prompt}. Clean design, educational layout.` }] }
+      contents: { parts: [{ text: `Professional mind map image about: ${prompt}. High resolution, educational layout, cyan and blue tones.` }] }
     });
     const part = response.candidates?.[0]?.content?.parts.find((p: any) => p.inlineData);
     return part ? `data:image/png;base64,${part.inlineData.data}` : null;
-  } catch (error) {
-    return null;
-  }
+  });
 };
 
 export const generateStudyPlan = async (materia: Materia, horasDisponiveis: number): Promise<StudyPlanDay[]> => {
-  const ai = getAIInstance();
   const userId = await getUserId();
   if (userId) trackApiUsage(userId, 'STUDY_PLAN').catch(() => {});
 
-  try {
+  return withRetry(async () => {
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere um plano de estudo JSON para "${materia}" em ${horasDisponiveis}h.`,
+      contents: `Gere um cronograma de estudo em JSON para "${materia}" distribuído em ${horasDisponiveis} horas.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: { 
@@ -124,20 +144,18 @@ export const generateStudyPlan = async (materia: Materia, horasDisponiveis: numb
       }
     });
     return JSON.parse(response.text || "[]");
-  } catch (error) {
-    return [];
-  }
+  });
 };
 
 export const generateMnemonic = async (materia: Materia): Promise<MnemonicResponse> => {
-  const ai = getAIInstance();
   const userId = await getUserId();
   if (userId) trackApiUsage(userId, 'MNEMONIC').catch(() => {});
 
-  try {
+  return withRetry(async () => {
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere um mnemônico JSON para concursos sobre "${materia}".`,
+      contents: `Gere um mnemônico criativo para concursos sobre "${materia}". Responda em JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: { 
@@ -151,20 +169,18 @@ export const generateMnemonic = async (materia: Materia): Promise<MnemonicRespon
       }
     });
     return JSON.parse(response.text || "{}");
-  } catch (error) {
-    throw new Error("IA falhou ao sintetizar mnemônico.");
-  }
+  });
 };
 
 export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]> => {
-  const ai = getAIInstance();
   const userId = await getUserId();
   if (userId) trackApiUsage(userId, 'GENERATE_QUESTION').catch(() => {});
 
-  try {
+  return withRetry(async () => {
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere 5 flashcards JSON para "${materia}".`,
+      contents: `Gere 5 flashcards técnicos para a disciplina "${materia}". Responda em JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -181,40 +197,31 @@ export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]>
       }
     });
     return JSON.parse(response.text || "[]");
-  } catch (error) {
-    return [];
-  }
+  });
 };
 
 export const generateEssayTheme = async (banca: Banca): Promise<string> => {
-  const ai = getAIInstance();
-  const userId = await getUserId();
-  if (userId) trackApiUsage(userId, 'MNEMONIC').catch(() => {});
-
-  try {
+  return withRetry(async () => {
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({ 
       model: 'gemini-3-flash-preview', 
-      contents: `Gere APENAS o título de um tema de redação para a banca ${banca}.` 
+      contents: `Gere apenas o título de um tema de redação provável para a banca ${banca} em 2024/2025.` 
     });
-    return response.text?.trim() || "Tendências Contemporâneas na Administração";
-  } catch (error) {
-    return "Os Desafios do Estado Democrático de Direito";
-  }
+    return response.text?.trim() || "Tendências da Administração Pública";
+  });
 };
 
 export const getEssayTips = async (theme: string, banca: Banca): Promise<string[]> => {
-  const ai = getAIInstance();
-  try {
+  return withRetry(async () => {
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `3 dicas curtas para o tema "${theme}" na banca "${banca}". Retorne um array JSON.`,
+      contents: `3 dicas de ouro para o tema "${theme}" na banca "${banca}". Retorne array JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
       }
     });
     return JSON.parse(response.text || "[]");
-  } catch (error) {
-    return ["Mantenha a coesão.", "Foco na norma culta.", "Respeite a estrutura."];
-  }
+  });
 };

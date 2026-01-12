@@ -19,6 +19,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [answeredCount, setAnsweredCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   // Buffer de prefetching
   const [questionQueue, setQuestionQueue] = useState<Question[]>([]);
@@ -61,18 +62,25 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
 
   const startSession = async () => {
     setLoading(true);
+    setError(null);
     setAnsweredCount(0);
     setQuestionQueue([]);
     try {
       const q = await generateQuestion(banca, materia, nivel);
       setCurrentQuestion(q);
       setIsSessionActive(true);
-      // Inicia prefetch das próximas 2 enquanto o usuário lê a primeira
       prefetchQuestions(banca, materia, nivel);
     } catch (e: any) {
-      alert(e.message || "Erro ao carregar questão.");
+      setError(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectApiKey = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      window.location.reload();
     }
   };
 
@@ -83,8 +91,6 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
     setShowExplanation(true);
     setAnsweredCount(prev => prev + 1);
     onQuestionAnswered(isCorrect, materia);
-    
-    // Aproveita que o usuário está lendo a explicação para garantir o buffer
     prefetchQuestions(banca, materia, nivel);
   };
 
@@ -101,18 +107,21 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
       setCurrentQuestion(nextQ);
       setShowExplanation(false);
       setSelectedOption(null);
-      // Repõe o buffer
       prefetchQuestions(banca, materia, nivel);
     } else {
       setLoading(true);
+      setError(null);
       try {
         const q = await generateQuestion(banca, materia, nivel);
         setCurrentQuestion(q);
         setShowExplanation(false);
         setSelectedOption(null);
         prefetchQuestions(banca, materia, nivel);
-      } catch (e: any) { alert(e.message || "Falha na próxima questão."); }
-      finally { setLoading(false); }
+      } catch (e: any) { 
+        setError(e.message);
+      } finally { 
+        setLoading(false); 
+      }
     }
   };
 
@@ -137,12 +146,34 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
         )}
       </header>
 
+      {error && (
+        <div className="p-10 bg-rose-500/10 border border-rose-500/20 rounded-[3rem] text-center space-y-6 animate-in zoom-in duration-500">
+           <div className="text-4xl">⚠️</div>
+           <div className="space-y-2">
+              <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Falha Crítica na Geração</p>
+              <p className="text-xs font-bold text-zinc-400 max-w-sm mx-auto leading-relaxed">{error}</p>
+           </div>
+           {error.includes('QUOTA') && (
+              <button 
+                onClick={handleSelectApiKey}
+                className="bg-blue-600 text-white px-8 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+              >
+                Conectar minha própria Chave (Google)
+              </button>
+           )}
+           <button onClick={() => { setError(null); setIsSessionActive(false); }} className="block mx-auto text-[8px] font-black text-zinc-600 uppercase tracking-widest underline underline-offset-4">
+              Tentar Novamente
+           </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="py-32 md:py-40 text-center space-y-4">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-blue-600 text-[9px] font-black tracking-[0.4em] uppercase">Consultando Módulo Gemini...</p>
+          <p className="text-[7px] text-zinc-600 uppercase tracking-widest">Aguardando Resposta do Cluster de Concursos</p>
         </div>
-      ) : !isSessionActive ? (
+      ) : !isSessionActive && !error ? (
         <div className={cardClasses}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div className="space-y-2">
@@ -179,7 +210,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
             INICIAR CICLO ELITE
           </button>
         </div>
-      ) : currentQuestion && (
+      ) : currentQuestion && !error && (
         <div className="space-y-6">
            <div className={cardClasses}>
               <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
