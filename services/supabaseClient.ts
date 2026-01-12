@@ -11,7 +11,7 @@ export const KIWIFY_CONFIG = {
 
 export const API_LIMIT_CONFIG = {
   MONTHLY_LIMIT_BRL: 30.00,
-  TRIAL_LIMIT_BRL: 1.50 // Limite para usuários novos testarem
+  TRIAL_LIMIT_BRL: 1.50 
 };
 
 export const isSupabaseConfigured = supabaseUrl.includes('.supabase.co') && supabaseKey.length > 20;
@@ -29,21 +29,22 @@ const API_COSTS = {
   MNEMONIC: 0.05            
 };
 
+// Função resiliente: não bloqueia a experiência se o RPC falhar
 export const trackApiUsage = async (userId: string, action: keyof typeof API_COSTS): Promise<boolean> => {
-  if (!isSupabaseConfigured) return true;
+  if (!isSupabaseConfigured || !userId) return true;
   
   try {
-    const cost = API_COSTS[action];
+    const cost = API_COSTS[action] || 0.05;
     const { data: success, error } = await supabase.rpc('track_usage', { 
       user_id: userId, 
       cost_to_add: cost 
     });
 
     if (error) {
-      console.warn(`[Supabase] A função 'track_usage' não foi encontrada.`, error.message);
+      console.warn(`[UsageTrack] RPC 'track_usage' indisponível. Liberando acesso.`);
       return true;
     }
-    return success as boolean;
+    return success !== false; 
   } catch (e) {
     return true; 
   }

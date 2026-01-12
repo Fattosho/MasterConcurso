@@ -13,10 +13,9 @@ const getAIInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Nivel): Promise<Question> => {
   const ai = getAIInstance();
   const userId = await getUserId();
-  if (!userId) throw new Error("Usuário não identificado.");
-
-  const success = await trackApiUsage(userId, 'GENERATE_QUESTION');
-  if (!success) throw new Error("Limite de uso atingido.");
+  
+  // Track usage de forma não-bloqueante
+  if (userId) trackApiUsage(userId, 'GENERATE_QUESTION').catch(() => {});
 
   try {
     const response = await ai.models.generateContent({
@@ -41,17 +40,14 @@ export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Ni
     return { ...data, id: `Q-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, banca, materia, nivel };
   } catch (error) {
     console.error("Erro ao gerar questão:", error);
-    throw error;
+    throw new Error("Falha ao gerar questão pela IA.");
   }
 };
 
 export const evaluateEssayImage = async (base64Image: string, theme: string, banca: Banca) => {
   const ai = getAIInstance();
   const userId = await getUserId();
-  if (!userId) throw new Error("Não autenticado");
-
-  const success = await trackApiUsage(userId, 'EVALUATE_ESSAY');
-  if (!success) throw new Error("Limite de uso atingido.");
+  if (userId) trackApiUsage(userId, 'EVALUATE_ESSAY').catch(() => {});
 
   const pureBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
   try {
@@ -88,15 +84,12 @@ export const evaluateEssayImage = async (base64Image: string, theme: string, ban
 export const generateMindMapFromDescription = async (prompt: string): Promise<string | null> => {
   const ai = getAIInstance();
   const userId = await getUserId();
-  if (!userId) throw new Error("Não autenticado");
-
-  const success = await trackApiUsage(userId, 'GENERATE_MINDMAP');
-  if (!success) throw new Error("Limite de uso atingido.");
+  if (userId) trackApiUsage(userId, 'GENERATE_MINDMAP').catch(() => {});
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: `Professional educational mind map image about: ${prompt}. High resolution, clear labels.` }] }
+      contents: { parts: [{ text: `Professional educational mind map image about: ${prompt}. High resolution, clear labels, distinct blue and cyan colors, modern layout.` }] }
     });
     const part = response.candidates?.[0]?.content?.parts.find((p: any) => p.inlineData);
     return part ? `data:image/png;base64,${part.inlineData.data}` : null;
@@ -109,15 +102,12 @@ export const generateMindMapFromDescription = async (prompt: string): Promise<st
 export const generateStudyPlan = async (materia: Materia, horasDisponiveis: number): Promise<StudyPlanDay[]> => {
   const ai = getAIInstance();
   const userId = await getUserId();
-  if (!userId) throw new Error("Não autenticado");
-
-  const success = await trackApiUsage(userId, 'STUDY_PLAN');
-  if (!success) throw new Error("Limite de uso atingido.");
+  if (userId) trackApiUsage(userId, 'STUDY_PLAN').catch(() => {});
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Cronograma de estudo para "${materia}" com foco em ${horasDisponiveis} horas. JSON array.`,
+      contents: `Cronograma de estudo para "${materia}" com foco em ${horasDisponiveis} horas. Gere um array JSON de 3 atividades.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: { 
@@ -129,7 +119,7 @@ export const generateStudyPlan = async (materia: Materia, horasDisponiveis: numb
               activity: { type: Type.STRING }, 
               focus: { type: Type.STRING } 
             } 
-          } 
+          }
         }
       }
     });
@@ -143,15 +133,12 @@ export const generateStudyPlan = async (materia: Materia, horasDisponiveis: numb
 export const generateMnemonic = async (materia: Materia): Promise<MnemonicResponse> => {
   const ai = getAIInstance();
   const userId = await getUserId();
-  if (!userId) throw new Error("Não autenticado");
-
-  const success = await trackApiUsage(userId, 'MNEMONIC');
-  if (!success) throw new Error("Limite de uso atingido.");
+  if (userId) trackApiUsage(userId, 'MNEMONIC').catch(() => {});
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere um mnemônico de concurso para "${materia}". JSON.`,
+      contents: `Gere um mnemônico criativo para concursos sobre "${materia}". Responda em JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: { 
@@ -174,15 +161,12 @@ export const generateMnemonic = async (materia: Materia): Promise<MnemonicRespon
 export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]> => {
   const ai = getAIInstance();
   const userId = await getUserId();
-  if (!userId) throw new Error("Não autenticado");
-  
-  const success = await trackApiUsage(userId, 'GENERATE_QUESTION');
-  if (!success) throw new Error("Limite de uso atingido.");
+  if (userId) trackApiUsage(userId, 'GENERATE_QUESTION').catch(() => {});
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere 5 flashcards técnicos para a disciplina "${materia}". JSON.`,
+      contents: `Gere 5 flashcards técnicos (pergunta e resposta) para a disciplina "${materia}". Responda em JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -209,21 +193,17 @@ export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]>
 export const generateEssayTheme = async (banca: Banca): Promise<string> => {
   const ai = getAIInstance();
   const userId = await getUserId();
-  if (!userId) throw new Error("Não autenticado");
-
-  // Adicionando track usage para o tema da redação
-  const success = await trackApiUsage(userId, 'MNEMONIC'); // Usando custo mínimo
-  if (!success) throw new Error("Limite de uso atingido.");
+  if (userId) trackApiUsage(userId, 'MNEMONIC').catch(() => {});
 
   try {
     const response = await ai.models.generateContent({ 
       model: 'gemini-3-flash-preview', 
-      contents: `Gere um tema de redação inédito e atual para a banca "${banca}". Retorne APENAS o título do tema em texto puro.` 
+      contents: `Gere um tema de redação curto e atual para a banca "${banca}". Retorne apenas o título.` 
     });
-    return response.text?.trim() || "Tema Indisponível no momento.";
+    return response.text?.trim() || "Tendências da Inteligência Artificial no Serviço Público";
   } catch (error) {
     console.error("Erro ao gerar tema:", error);
-    throw error;
+    return "Os desafios da sustentabilidade urbana no Brasil contemporâneo";
   }
 };
 
@@ -240,7 +220,6 @@ export const getEssayTips = async (theme: string, banca: Banca): Promise<string[
     });
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Erro ao buscar dicas:", error);
     return ["Mantenha a coesão textual.", "Respeite a estrutura dissertativa.", "Atente-se à norma culta."];
   }
 };
