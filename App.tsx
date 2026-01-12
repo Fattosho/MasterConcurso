@@ -33,7 +33,7 @@ const App: React.FC = () => {
     try {
       const saved = localStorage.getItem('user_performance');
       if (saved) return JSON.parse(saved);
-    } catch (e) { console.error("Falha ao ler performance local:", e); }
+    } catch (e) { }
     return { totalAnswered: 0, correctAnswers: 0, subjectStats: {}, xp: 0, level: 1 };
   });
 
@@ -82,6 +82,7 @@ const App: React.FC = () => {
       return;
     }
 
+    // Timer para exibir botões de emergência se o login demorar mais de 2s
     authTimeoutRef.current = setTimeout(() => {
       setAuthError(true);
     }, 2000);
@@ -122,7 +123,6 @@ const App: React.FC = () => {
   const isSubscriber = profile?.is_active_subscriber === true;
   const usageAmount = profile?.monthly_api_usage ?? 0;
   const canAccessAI = isSubscriber || (usageAmount < API_LIMIT_CONFIG.TRIAL_LIMIT_BRL);
-  const usageLimitReached = usageAmount >= API_LIMIT_CONFIG.MONTHLY_LIMIT_BRL;
 
   if (loading) return (
     <div className="h-screen w-screen bg-[#050507] flex flex-col items-center justify-center p-8 overflow-hidden text-center">
@@ -131,21 +131,21 @@ const App: React.FC = () => {
         <div className="absolute inset-0 w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
       
-      <div className="space-y-3 mb-10">
-        <p className="text-[12px] font-black text-blue-600 uppercase tracking-[0.6em] animate-pulse">Sincronizando Sistema de Elite</p>
-        <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Autenticando Identidade Digital v1.0</p>
+      <div className="space-y-3 mb-12">
+        <p className="text-[12px] font-black text-blue-600 uppercase tracking-[0.6em] animate-pulse">Autenticando Identidade</p>
+        <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Aguardando Resposta do Servidor Elite</p>
       </div>
 
-      <div className={`space-y-4 w-full max-w-xs transition-all duration-700 ${authError ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-         <div className="p-4 bg-zinc-900/50 border border-white/5 rounded-[2rem] space-y-4">
-            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">
-              A autenticação está demorando mais que o esperado?
+      <div className={`space-y-4 w-full max-w-xs transition-all duration-700 ${authError ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+         <div className="p-5 bg-zinc-900/50 border border-white/5 rounded-[2.5rem] space-y-4">
+            <p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest leading-relaxed px-4">
+              Sessão travada ou e-mail não confimado?
             </p>
             <button 
               onClick={handleForceReset}
-              className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-rose-600/20 transition-all active:scale-95"
+              className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-rose-600/30 transition-all active:scale-95"
             >
-              ⚠️ LIMPAR CACHE E REFAZER LOGIN
+              ⚠️ LIMPAR ACESSO E REFAZER LOGIN
             </button>
             <button 
               onClick={() => window.location.reload()}
@@ -154,7 +154,7 @@ const App: React.FC = () => {
               🔄 Reiniciar Terminal
             </button>
          </div>
-         <p className="text-[7px] text-zinc-700 font-bold uppercase tracking-[0.3em]">RECOMENDADO PARA SESSÕES TRAVADAS</p>
+         <p className="text-[7px] text-zinc-700 font-bold uppercase tracking-[0.3em]">RECOMENDADO PARA RESOLVER LOOPS DE LOGIN</p>
       </div>
     </div>
   );
@@ -164,14 +164,13 @@ const App: React.FC = () => {
   const SubscriptionWall = () => (
     <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-10 glass-card rounded-[3.5rem] border border-blue-600/30 animate-in zoom-in duration-500 shadow-2xl">
       <div className="w-24 h-24 bg-blue-600/10 rounded-full flex items-center justify-center text-5xl mb-8 animate-bounce">🚀</div>
-      <h2 className="text-3xl font-black uppercase mb-4 tracking-tighter">Limites de <span className="text-blue-600">IA Trial</span> Excedidos</h2>
+      <h2 className="text-3xl font-black uppercase mb-4 tracking-tighter">Limites de <span className="text-blue-600">Modo Trial</span> Atingidos</h2>
       <p className="text-zinc-500 text-[11px] font-bold mb-10 max-w-xs leading-relaxed">
-        Você atingiu o teto do modo experimental. Migre para o Plano Master para desbloquear todo o poder da inteligência competitiva.
+        Você explorou o potencial máximo do modo gratuito. Migre para o Plano Master para continuar sua jornada de aprovação.
       </p>
-      
       <div className="w-full max-w-sm space-y-6">
         <div className="bg-zinc-950 p-6 rounded-3xl border border-white/5 shadow-inner">
-           <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Assinatura Profissional</p>
+           <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Acesso Profissional</p>
            <p className="text-3xl font-black text-white">R$ 47,00<span className="text-sm text-zinc-500 font-normal">/mês</span></p>
         </div>
         <a href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} target="_blank" className="block w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-blue-600/30 transition-all active:scale-95">

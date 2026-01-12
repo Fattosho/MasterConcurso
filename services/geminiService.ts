@@ -4,23 +4,25 @@ import { Question, Banca, Materia, Nivel, MnemonicResponse, Flashcard, StudyPlan
 import { trackApiUsage, supabase } from "./supabaseClient";
 
 const getUserId = async () => {
-  const { data } = await supabase.auth.getUser();
-  return data?.user?.id;
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.id;
+  } catch (e) { return null; }
 };
 
+// Inicializa a IA sempre com a chave mais atual
 const getAIInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Nivel): Promise<Question> => {
   const ai = getAIInstance();
   const userId = await getUserId();
   
-  // Track usage de forma não-bloqueante
   if (userId) trackApiUsage(userId, 'GENERATE_QUESTION').catch(() => {});
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere uma questão de múltipla escolha inédita para concursos no Brasil. BANCA: "${banca}" MATÉRIA: "${materia}" NÍVEL: "${nivel}" 5 alternativas (A-E). Responda EXCLUSIVAMENTE em JSON puro.`,
+      contents: `Gere uma questão de múltipla escolha inédita para concursos. BANCA: "${banca}" MATÉRIA: "${materia}" NÍVEL: "${nivel}". Responda APENAS o JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -39,8 +41,8 @@ export const generateQuestion = async (banca: Banca, materia: Materia, nivel: Ni
     const data = JSON.parse(response.text || "{}");
     return { ...data, id: `Q-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, banca, materia, nivel };
   } catch (error) {
-    console.error("Erro ao gerar questão:", error);
-    throw new Error("Falha ao gerar questão pela IA.");
+    console.error("Erro IA Questão:", error);
+    throw new Error("Falha na Inteligência Artificial ao gerar questão.");
   }
 };
 
@@ -56,7 +58,7 @@ export const evaluateEssayImage = async (base64Image: string, theme: string, ban
       contents: {
         parts: [
           { inlineData: { data: pureBase64, mimeType: 'image/jpeg' } },
-          { text: `Aja como um corretor de redação da banca ${banca}. Avalie esta redação sobre o tema "${theme}". Retorne a análise em JSON.` }
+          { text: `Avalie esta redação para a banca ${banca} sobre o tema "${theme}". Retorne a análise em JSON.` }
         ]
       },
       config: {
@@ -76,8 +78,7 @@ export const evaluateEssayImage = async (base64Image: string, theme: string, ban
     });
     return JSON.parse(response.text || "{}");
   } catch (error) {
-    console.error("Erro ao avaliar redação:", error);
-    throw error;
+    throw new Error("Falha na análise óptica da redação.");
   }
 };
 
@@ -89,12 +90,11 @@ export const generateMindMapFromDescription = async (prompt: string): Promise<st
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: `Professional educational mind map image about: ${prompt}. High resolution, clear labels, distinct blue and cyan colors, modern layout.` }] }
+      contents: { parts: [{ text: `Professional mind map about: ${prompt}. Clean design, educational layout.` }] }
     });
     const part = response.candidates?.[0]?.content?.parts.find((p: any) => p.inlineData);
     return part ? `data:image/png;base64,${part.inlineData.data}` : null;
   } catch (error) {
-    console.error("Erro ao gerar mapa mental:", error);
     return null;
   }
 };
@@ -107,7 +107,7 @@ export const generateStudyPlan = async (materia: Materia, horasDisponiveis: numb
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Cronograma de estudo para "${materia}" com foco em ${horasDisponiveis} horas. Gere um array JSON de 3 atividades.`,
+      contents: `Gere um plano de estudo JSON para "${materia}" em ${horasDisponiveis}h.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: { 
@@ -125,7 +125,6 @@ export const generateStudyPlan = async (materia: Materia, horasDisponiveis: numb
     });
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Erro ao gerar plano de estudo:", error);
     return [];
   }
 };
@@ -138,7 +137,7 @@ export const generateMnemonic = async (materia: Materia): Promise<MnemonicRespon
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere um mnemônico criativo para concursos sobre "${materia}". Responda em JSON.`,
+      contents: `Gere um mnemônico JSON para concursos sobre "${materia}".`,
       config: {
         responseMimeType: "application/json",
         responseSchema: { 
@@ -153,8 +152,7 @@ export const generateMnemonic = async (materia: Materia): Promise<MnemonicRespon
     });
     return JSON.parse(response.text || "{}");
   } catch (error) {
-    console.error("Erro ao gerar mnemônico:", error);
-    throw error;
+    throw new Error("IA falhou ao sintetizar mnemônico.");
   }
 };
 
@@ -166,7 +164,7 @@ export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]>
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere 5 flashcards técnicos (pergunta e resposta) para a disciplina "${materia}". Responda em JSON.`,
+      contents: `Gere 5 flashcards JSON para "${materia}".`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -177,15 +175,13 @@ export const generateFlashcards = async (materia: Materia): Promise<Flashcard[]>
               front: { type: Type.STRING }, 
               back: { type: Type.STRING }, 
               subject: { type: Type.STRING } 
-            }, 
-            required: ["front", "back", "subject"] 
+            }
           }
         }
       }
     });
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Erro ao gerar flashcards:", error);
     return [];
   }
 };
@@ -198,12 +194,11 @@ export const generateEssayTheme = async (banca: Banca): Promise<string> => {
   try {
     const response = await ai.models.generateContent({ 
       model: 'gemini-3-flash-preview', 
-      contents: `Gere um tema de redação curto e atual para a banca "${banca}". Retorne apenas o título.` 
+      contents: `Gere APENAS o título de um tema de redação para a banca ${banca}.` 
     });
-    return response.text?.trim() || "Tendências da Inteligência Artificial no Serviço Público";
+    return response.text?.trim() || "Tendências Contemporâneas na Administração";
   } catch (error) {
-    console.error("Erro ao gerar tema:", error);
-    return "Os desafios da sustentabilidade urbana no Brasil contemporâneo";
+    return "Os Desafios do Estado Democrático de Direito";
   }
 };
 
@@ -212,7 +207,7 @@ export const getEssayTips = async (theme: string, banca: Banca): Promise<string[
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Dê 3 dicas estratégicas para uma redação sobre o tema "${theme}" focado na banca "${banca}". JSON array de strings.`,
+      contents: `3 dicas curtas para o tema "${theme}" na banca "${banca}". Retorne um array JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
@@ -220,6 +215,6 @@ export const getEssayTips = async (theme: string, banca: Banca): Promise<string[
     });
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    return ["Mantenha a coesão textual.", "Respeite a estrutura dissertativa.", "Atente-se à norma culta."];
+    return ["Mantenha a coesão.", "Foco na norma culta.", "Respeite a estrutura."];
   }
 };

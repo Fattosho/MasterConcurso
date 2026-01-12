@@ -29,7 +29,7 @@ const API_COSTS = {
   MNEMONIC: 0.05            
 };
 
-// Função resiliente: não bloqueia a experiência se o RPC falhar
+// FUNÇÃO RESILIENTE: Não trava a aplicação se o banco falhar
 export const trackApiUsage = async (userId: string, action: keyof typeof API_COSTS): Promise<boolean> => {
   if (!isSupabaseConfigured || !userId) return true;
   
@@ -40,12 +40,13 @@ export const trackApiUsage = async (userId: string, action: keyof typeof API_COS
       cost_to_add: cost 
     });
 
+    // Se houver erro de RPC (função não existe no banco), liberamos o uso para não travar o app
     if (error) {
-      console.warn(`[UsageTrack] RPC 'track_usage' indisponível. Liberando acesso.`);
+      console.warn(`[Supabase] Erro ao rastrear uso: ${error.message}. Liberando acesso por contingência.`);
       return true;
     }
     return success !== false; 
   } catch (e) {
-    return true; 
+    return true; // Contingência: Erro de rede ou outro, libera o uso
   }
 };
