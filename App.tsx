@@ -29,7 +29,6 @@ const App: React.FC = () => {
     return { totalAnswered: 0, correctAnswers: 0, subjectStats: {}, xp: 0, level: 1 };
   });
 
-  // Função centralizada para buscar perfil
   const fetchProfile = async (userId: string) => {
     try {
       if (!isSupabaseConfigured) return null;
@@ -47,7 +46,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Verificar sessão ao carregar
   useEffect(() => {
     const checkUser = async () => {
       if (!isSupabaseConfigured) {
@@ -136,7 +134,6 @@ const App: React.FC = () => {
     );
   }
 
-  // AGORA: Se não houver usuário, mostre SEMPRE a tela de Auth (Login)
   if (!user) {
     return <AuthScreen theme={theme} onLoginSuccess={(u) => setUser(u)} />;
   }
@@ -159,11 +156,11 @@ const App: React.FC = () => {
               <div className="flex items-center gap-4">
                 <span className="text-xl">⚠️</span>
                 <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-relaxed">
-                  MODO OFFLINE ATIVO: As chaves do Supabase não foram encontradas no ambiente.
+                  MODO OFFLINE ATIVO: As chaves do Supabase não foram configuradas na VERCEL.
                 </p>
               </div>
               <div className="flex gap-2">
-                <a href="https://supabase.com/" target="_blank" className="text-[9px] font-black bg-amber-500 text-black px-4 py-2 rounded-lg uppercase">Configurar Chaves</a>
+                <a href="https://vercel.com/" target="_blank" className="text-[9px] font-black bg-amber-500 text-black px-4 py-2 rounded-lg uppercase">Painel Vercel</a>
                 <button onClick={() => window.location.reload()} className="text-[9px] font-black bg-zinc-800 text-white px-4 py-2 rounded-lg uppercase">Recarregar</button>
               </div>
             </div>

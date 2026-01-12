@@ -22,7 +22,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSupabaseConfigured) {
-      setError("O Banco de Dados (Supabase) não está configurado. Verifique as variáveis de ambiente no Netlify.");
+      setError("O Banco de Dados (Supabase) não está configurado. Verifique as variáveis de ambiente (Environment Variables) no Dashboard da Vercel.");
       return;
     }
 
