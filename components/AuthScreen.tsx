@@ -11,6 +11,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEmailSent, setShowEmailSent] = useState(false);
 
   // Form State
   const [email, setEmail] = useState('');
@@ -36,9 +37,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
           email,
           password,
         });
-        if (authError) throw authError;
         
-        // Buscar perfil (o trigger já deve ter criado, ou criamos agora se faltar)
+        if (authError) {
+          if (authError.message.includes("Email not confirmed")) {
+            throw new Error("⚠️ Por favor, confirme seu e-mail antes de acessar o terminal.");
+          }
+          throw authError;
+        }
+        
         let { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -51,7 +57,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         if (password !== confirmPassword) throw new Error("As senhas não coincidem.");
         if (whatsapp.length < 8) throw new Error("Informe um WhatsApp válido.");
         
-        // No registro, enviamos o full_name para o banco via options.data
         const { data, error: authError } = await supabase.auth.signUp({
           email,
           password,
@@ -72,22 +77,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
           throw authError;
         }
 
-        // Se o usuário foi criado, tentamos atualizar o perfil com o WhatsApp 
-        // (Isso garante que mesmo se o trigger falhar, o dado seja gravado)
-        if (data.user) {
-          await supabase
-            .from('profiles')
-            .upsert({ 
-              id: data.user.id, 
-              full_name: fullName, 
-              email: email, 
-              whatsapp: whatsapp,
-              updated_at: new Date().toISOString()
-            });
-        }
-
-        alert("REGISTRO DE ELITE REALIZADO!\nVerifique seu e-mail (se a confirmação estiver ativa) ou faça login.");
-        setIsLogin(true);
+        // Se o Supabase estiver configurado para exigir confirmação, 
+        // a sessão não será iniciada automaticamente aqui.
+        setShowEmailSent(true);
       }
     } catch (err: any) {
       setError(err.message || "Ocorreu um erro inesperado.");
@@ -103,6 +95,31 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
   }`;
 
   const labelStyle = "block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 ml-1";
+
+  if (showEmailSent) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050508] px-4">
+        <div className="max-w-[440px] w-full glass-card p-12 rounded-[3rem] border border-blue-600/20 text-center space-y-8 animate-in zoom-in duration-500">
+          <div className="w-24 h-24 bg-blue-600/10 rounded-full mx-auto flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(37,99,235,0.2)] animate-bounce">
+            📧
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-2xl font-black uppercase tracking-tighter">Verifique seu <span className="text-blue-600">E-mail</span></h2>
+            <p className="text-zinc-500 text-xs font-bold leading-relaxed">
+              Enviamos um link de ativação para <span className="text-white">{email}</span>.<br/> 
+              Confirme para liberar seu acesso ao terminal Master.
+            </p>
+          </div>
+          <button 
+            onClick={() => { setShowEmailSent(false); setIsLogin(true); }}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-blue-600/20"
+          >
+            Ir para Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050508] overflow-y-auto px-4 py-8">
