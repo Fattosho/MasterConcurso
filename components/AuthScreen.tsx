@@ -38,29 +38,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         });
         if (authError) throw authError;
         
-        // Buscar perfil
-        let { data: profile, error: profileFetchError } = await supabase
+        // Buscar perfil (o trigger já deve ter criado, ou criamos agora se faltar)
+        let { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
-
-        // Se logou mas não tem perfil (o erro que você teve antes), tenta criar agora
-        if (!profile && data.user) {
-          console.log("Usuário sem perfil detectado. Tentando criar...");
-          const { data: newProfile, error: upsertError } = await supabase
-            .from('profiles')
-            .upsert({ 
-              id: data.user.id, 
-              full_name: fullName || email.split('@')[0], 
-              email: email,
-              updated_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-          
-          if (!upsertError) profile = newProfile;
-        }
 
         onLoginSuccess({ ...data.user, profile });
       } else {
@@ -68,43 +51,46 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         if (password !== confirmPassword) throw new Error("As senhas não coincidem.");
         if (whatsapp.length < 8) throw new Error("Informe um WhatsApp válido.");
         
+        // No registro, enviamos o full_name para o banco via options.data
         const { data, error: authError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: fullName,
+              whatsapp: whatsapp
+            }
+          }
         });
         
         if (authError) {
           if (authError.message.includes("already registered")) {
-            setError("Este e-mail já existe. Tente fazer Login.");
+            setError("E-mail já cadastrado. Tente fazer login.");
             setLoading(false);
             return;
           }
           throw authError;
         }
 
+        // Se o usuário foi criado, tentamos atualizar o perfil com o WhatsApp 
+        // (Isso garante que mesmo se o trigger falhar, o dado seja gravado)
         if (data.user) {
-          // Tentativa de gravar perfil
-          const { error: profileError } = await supabase
+          await supabase
             .from('profiles')
-            .insert({ 
+            .upsert({ 
               id: data.user.id, 
               full_name: fullName, 
               email: email, 
-              whatsapp: whatsapp 
+              whatsapp: whatsapp,
+              updated_at: new Date().toISOString()
             });
-          
-          if (profileError) {
-            console.error("Erro RLS:", profileError);
-            // Se falhou aqui, o usuário já está no Auth, mas as regras do banco o bloquearam
-            throw new Error(`Erro de Permissão (RLS): ${profileError.message}. Verifique o SQL Editor no Supabase.`);
-          }
         }
 
-        alert("CONTA ELITE CRIADA! Agora faça login.");
+        alert("REGISTRO DE ELITE REALIZADO!\nVerifique seu e-mail (se a confirmação estiver ativa) ou faça login.");
         setIsLogin(true);
       }
     } catch (err: any) {
-      setError(err.message || "Ocorreu um erro.");
+      setError(err.message || "Ocorreu um erro inesperado.");
     } finally {
       setLoading(false);
     }
@@ -128,6 +114,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
           <h1 className="text-3xl font-black tracking-tighter uppercase glow-text">
             CONCURSO<span className="text-blue-600">MASTER</span>
           </h1>
+          <p className="text-zinc-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-2 italic">Acesso Restrito</p>
         </div>
 
         <div className="glass-card p-8 md:p-10 rounded-[3rem] border border-white/5 shadow-2xl">
@@ -140,33 +127,37 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
             {!isLogin && (
               <div>
                 <label className={labelStyle}>Nome Completo</label>
-                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputStyle} />
+                <input type="text" required placeholder="Ex: João Silva" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputStyle} />
               </div>
             )}
             <div>
               <label className={labelStyle}>E-mail</label>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputStyle} />
+              <input type="email" required placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputStyle} />
             </div>
             {!isLogin && (
               <div>
                 <label className={labelStyle}>WhatsApp</label>
-                <input type="tel" required value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className={inputStyle} />
+                <input type="tel" required placeholder="(00) 00000-0000" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className={inputStyle} />
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Senha</label>
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className={inputStyle} />
+                <input type="password" required placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className={inputStyle} />
               </div>
               {!isLogin && (
                 <div>
                   <label className={labelStyle}>Confirmar</label>
-                  <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputStyle} />
+                  <input type="password" required placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputStyle} />
                 </div>
               )}
             </div>
 
-            {error && <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-black uppercase text-center">{error}</div>}
+            {error && (
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-black uppercase text-center animate-pulse">
+                {error}
+              </div>
+            )}
 
             <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] transition-all disabled:opacity-50 shadow-xl shadow-blue-600/30">
               {loading ? "Processando..." : (isLogin ? 'Acessar Terminal' : 'Criar Perfil Elite')}
