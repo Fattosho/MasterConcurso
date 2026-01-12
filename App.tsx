@@ -192,11 +192,11 @@ const App: React.FC = () => {
           ) : !canAccessAI ? (
              <SubscriptionWall />
           ) : (usageLimitReached && isSubscriber) ? (
-             <div className="text-center p-12 glass-card rounded-[3rem] border border-rose-500/20 animate-in slide-in-from-top-10">
-               <div className="text-5xl mb-6">⚠️</div>
-               <h2 className="text-2xl font-black text-rose-500 mb-4 uppercase tracking-tighter">Teto de Billing Atingido</h2>
+             <div className="text-center p-12 glass-card rounded-[3rem] border border-blue-600/20 animate-in slide-in-from-top-10">
+               <div className="text-5xl mb-6">⚡</div>
+               <h2 className="text-2xl font-black text-blue-600 mb-4 uppercase tracking-tighter">Protocolo de Estabilização</h2>
                <p className="text-zinc-500 text-xs font-bold leading-relaxed max-w-md mx-auto">
-                 Detectamos um uso atípico de recursos este mês. Por segurança financeira, suas ferramentas de IA serão resetadas no primeiro dia do próximo mês.
+                 Detectamos uma carga de processamento extremamente alta em sua conta. Para garantir a máxima qualidade das respostas da IA para todos os membros Master, seu terminal entrou em um breve modo de resfriamento. O acesso completo será reestabelecido automaticamente.
                </p>
              </div>
           ) : (
