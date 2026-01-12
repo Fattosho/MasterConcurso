@@ -43,7 +43,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         
         if (authError) {
           if (authError.message.includes("Email not confirmed")) {
-            throw new Error("⚠️ Por favor, confirme seu e-mail ou finalize a assinatura.");
+            throw new Error("⚠️ Acesso Bloqueado: Confirme seu e-mail para entrar no painel.");
           }
           throw authError;
         }
@@ -78,7 +78,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         
         if (authError) {
           if (authError.message.includes("already registered")) {
-            setError("E-mail já cadastrado. Tente fazer login.");
+            setError("Identidade já registrada. Tente fazer login no painel.");
             setLoading(false);
             return;
           }
@@ -107,32 +107,32 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
       <div className="min-h-screen w-full flex items-center justify-center bg-[#050508] px-4 py-12 overflow-x-hidden relative">
         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#3b82f6 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }}></div>
         
-        <div className="max-w-[480px] w-full glass-card p-10 md:p-14 rounded-[3rem] border border-blue-600/30 text-center space-y-8 animate-in zoom-in duration-500 shadow-[0_0_100px_rgba(37,99,235,0.1)] relative">
+        <div className="max-w-[520px] w-full glass-card p-10 md:p-14 rounded-[3rem] border border-blue-600/30 text-center space-y-8 animate-in zoom-in duration-500 shadow-[0_0_100px_rgba(37,99,235,0.1)] relative">
           <div className="w-24 h-24 bg-blue-600/10 rounded-full mx-auto flex items-center justify-center text-5xl animate-bounce shadow-[0_0_30px_rgba(37,99,235,0.2)]">
-            💳
+            📩
           </div>
           <div className="space-y-4">
-            <h2 className="text-2xl font-black uppercase tracking-tighter">Conta Criada com <span className="text-blue-600">Sucesso!</span></h2>
-            <p className="text-zinc-400 text-xs font-bold leading-relaxed">
-              Para liberar o acesso <span className="text-white">Ilimitado</span> às questões, redações e mentorias por IA, finalize seu pagamento na Kiwify.
-            </p>
+            <h2 className="text-2xl font-black uppercase tracking-tighter">Confirme seu <span className="text-blue-600">E-mail</span></h2>
+            <div className="p-6 bg-zinc-950/50 rounded-3xl border border-white/5">
+              <p className="text-zinc-400 text-[12px] font-bold leading-relaxed">
+                Quase lá! Enviamos um link de ativação para o seu e-mail. 
+                <br/><br/>
+                Para acessar o seu <span className="text-white">Painel de Estudos</span> e liberar todas as ferramentas de IA, você precisa clicar no link enviado.
+              </p>
+            </div>
           </div>
           
           <div className="space-y-4">
-            <a 
-              href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} 
-              target="_blank" 
+            <button 
+              onClick={() => { setShowPaymentStep(false); setIsLogin(true); }}
               className="group relative block w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-600/30 active:scale-95 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              FINALIZAR ASSINATURA AGORA
-            </a>
-            <button 
-              onClick={() => { setShowPaymentStep(false); setIsLogin(true); }}
-              className="text-[9px] font-black text-zinc-500 uppercase tracking-widest hover:text-white transition-all underline underline-offset-4"
-            >
-              Já paguei, quero entrar
+              JÁ CONFIRMEI, FAZER LOGIN NO PAINEL
             </button>
+            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest leading-loose">
+              Não recebeu? Verifique sua caixa de SPAM ou promoções.
+            </p>
           </div>
         </div>
       </div>
@@ -141,12 +141,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-start md:justify-center bg-[#050508] px-4 py-12 md:py-8 relative overflow-x-hidden">
-      {/* Background Grid & FX */}
       <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none"></div>
 
       <div className="relative z-10 w-full max-w-[480px] animate-in fade-in slide-in-from-bottom-6 duration-700">
-        {/* LOGO CENTRALIZADA COM EFEITO - Ajuste de Margem Superior para evitar corte */}
         <div className="text-center mb-10 group mt-4 md:mt-0">
           <div className="relative inline-block mb-8">
             <div className="absolute inset-0 bg-blue-600 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity animate-pulse"></div>
@@ -161,7 +159,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         </div>
 
         <div className="glass-card p-6 md:p-12 rounded-[3rem] md:rounded-[4rem] border border-white/5 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] relative overflow-hidden">
-          {/* Efeito de brilho na borda superior */}
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-600/40 to-transparent"></div>
 
           <div className="flex bg-zinc-950/80 p-1 rounded-2xl mb-8 border border-white/5 shadow-inner">
@@ -225,19 +222,19 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
                   <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                   <span>Processando...</span>
                 </div>
-              ) : (isLogin ? 'Entrar no Terminal' : 'ASSINAR AGORA')}
+              ) : (isLogin ? 'Entrar no Painel' : 'CRIAR CONTA MASTER')}
             </button>
           </form>
 
           {isLogin && (
             <p className="mt-8 text-center text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-              Ainda não tem conta? <button onClick={() => setIsLogin(false)} className="text-blue-500 hover:text-blue-400 underline underline-offset-4 transition-colors">Assinar Plano</button>
+              Ainda não tem conta? <button onClick={() => setIsLogin(false)} className="text-blue-500 hover:text-blue-400 underline underline-offset-4 transition-colors">Assinar Plano Master</button>
             </p>
           )}
         </div>
         
         <p className="mt-8 text-center text-[8px] text-zinc-700 font-black uppercase tracking-[0.4em] opacity-40">
-          Protocolo v2.9 • Encriptação de Ponta a Ponta
+          Assinado: Equipe ConcursoMaster ELITE
         </p>
       </div>
     </div>

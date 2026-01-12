@@ -34,7 +34,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Pr
     }
     
     if (isQuotaError) {
-      throw new Error("QUOTA_EXHAUSTED: O limite de requisições da IA foi atingido. Tente novamente em instantes ou conecte sua própria chave nas configurações.");
+      throw new Error("QUOTA_EXHAUSTED: O limite de requisições da IA foi atingido. Tente novamente em instantes.");
     }
     throw error;
   }
