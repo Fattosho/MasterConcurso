@@ -1,5 +1,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+import { UserPerformance } from '../types';
 
 const supabaseUrl = 'https://qreebuimtidztsplibef.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyZWVidWltdGlkenRzcGxpYmVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODIzODIxMiwiZXhwIjoyMDgzODE0MjEyfQ.hyZ3SzI0OIHdrs5BztIwVkelhS3sY9A0bZ7eyvxsHmI';
@@ -29,24 +30,64 @@ const API_COSTS = {
   MNEMONIC: 0.05            
 };
 
-// FUNÇÃO RESILIENTE: Não trava a aplicação se o banco falhar
 export const trackApiUsage = async (userId: string, action: keyof typeof API_COSTS): Promise<boolean> => {
   if (!isSupabaseConfigured || !userId) return true;
-  
   try {
     const cost = API_COSTS[action] || 0.05;
     const { data: success, error } = await supabase.rpc('track_usage', { 
       user_id: userId, 
       cost_to_add: cost 
     });
-
-    // Se houver erro de RPC (função não existe no banco), liberamos o uso para não travar o app
-    if (error) {
-      console.warn(`[Supabase] Erro ao rastrear uso: ${error.message}. Liberando acesso por contingência.`);
-      return true;
-    }
+    if (error) return true;
     return success !== false; 
   } catch (e) {
-    return true; // Contingência: Erro de rede ou outro, libera o uso
+    return true;
+  }
+};
+
+/**
+ * SALVA O DESEMPENHO NO BANCO DE DADOS
+ */
+export const saveUserPerformance = async (userId: string, performance: UserPerformance) => {
+  if (!isSupabaseConfigured || !userId) return;
+  try {
+    await supabase
+      .from('profiles')
+      .update({
+        total_answered: performance.totalAnswered,
+        correct_answers: performance.correctAnswers,
+        xp: performance.xp,
+        level: performance.level,
+        subject_stats: performance.subjectStats
+      })
+      .eq('id', userId);
+  } catch (e) {
+    console.error("Erro ao salvar desempenho remoto:", e);
+  }
+};
+
+/**
+ * CARREGA O DESEMPENHO DO BANCO DE DADOS
+ */
+export const loadUserPerformance = async (userId: string): Promise<UserPerformance | null> => {
+  if (!isSupabaseConfigured || !userId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('total_answered, correct_answers, xp, level, subject_stats')
+      .eq('id', userId)
+      .single();
+    
+    if (error || !data) return null;
+
+    return {
+      totalAnswered: data.total_answered || 0,
+      correctAnswers: data.correct_answers || 0,
+      xp: data.xp || 0,
+      level: data.level || 1,
+      subjectStats: data.subject_stats || {}
+    };
+  } catch (e) {
+    return null;
   }
 };

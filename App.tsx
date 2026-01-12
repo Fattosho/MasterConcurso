@@ -10,9 +10,7 @@ import StudyPlan from './components/StudyPlan';
 import MindMapCreator from './components/MindMapCreator';
 import AuthScreen from './components/AuthScreen';
 import { UserPerformance, UserProfile } from './types';
-import { supabase, isSupabaseConfigured, KIWIFY_CONFIG, API_LIMIT_CONFIG } from './services/supabaseClient';
-
-// Removed redundant declare global for window.aistudio as it conflicts with the environment's existing AIStudio type definition.
+import { supabase, isSupabaseConfigured, KIWIFY_CONFIG, API_LIMIT_CONFIG, saveUserPerformance, loadUserPerformance } from './services/supabaseClient';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
@@ -25,37 +23,39 @@ const App: React.FC = () => {
 
   const authTimeoutRef = useRef<any>(null);
 
+  const [performance, setPerformance] = useState<UserPerformance>({
+    totalAnswered: 0,
+    correctAnswers: 0,
+    subjectStats: {},
+    xp: 0,
+    level: 1
+  });
+
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     localStorage.setItem('app-theme', newTheme);
   };
 
-  const [performance, setPerformance] = useState<UserPerformance>(() => {
+  const fetchProfileAndPerformance = useCallback(async (userId: string) => {
+    if (!isSupabaseConfigured) return;
     try {
-      const saved = localStorage.getItem('user_performance');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return { totalAnswered: 0, correctAnswers: 0, subjectStats: {}, xp: 0, level: 1 };
-  });
-
-  const fetchProfile = useCallback(async (userId: string) => {
-    if (!isSupabaseConfigured) return null;
-    try {
-      const { data, error } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
       
-      if (error) return null;
-      return data as UserProfile;
+      const remotePerf = await loadUserPerformance(userId);
+      if (remotePerf) setPerformance(remotePerf);
+
+      return profile as UserProfile;
     } catch (e) { return null; }
   }, []);
 
   const refreshProfile = async () => {
     if (user?.id) {
-      const profile = await fetchProfile(user.id);
+      const profile = await fetchProfileAndPerformance(user.id);
       if (profile) setUser(prev => ({ ...prev, profile }));
     }
   };
@@ -63,30 +63,23 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      localStorage.removeItem('user_performance');
       setUser(null);
       setActiveTab('dashboard');
     } catch (e) {}
   };
 
-  const handleOptimizeAndReload = async () => {
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-      await supabase.auth.signOut().catch(() => {});
-      window.location.href = window.location.origin;
-    } catch (e) {
-      window.location.reload();
-    }
+  const handleResetAndReload = async () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    await supabase.auth.signOut().catch(() => {});
+    window.location.reload();
   };
 
   const handleSelectApiKey = async () => {
     try {
-      // Access aistudio directly as it is assumed to be provided by the environment
       const aistudio = (window as any).aistudio;
       if (aistudio) {
         await aistudio.openSelectKey();
-        // After selection, we reload to ensure the new key is available in the environment
         window.location.reload();
       } else {
         alert("Ambiente AI Studio não detectado.");
@@ -109,7 +102,7 @@ const App: React.FC = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
+        const profile = await fetchProfileAndPerformance(session.user.id);
         setUser({ ...session.user, profile });
       }
     } catch (err) {
@@ -118,13 +111,13 @@ const App: React.FC = () => {
       if (authTimeoutRef.current) clearTimeout(authTimeoutRef.current);
       setLoading(false);
     }
-  }, [fetchProfile]);
+  }, [fetchProfileAndPerformance]);
 
   useEffect(() => {
     initAuth();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
+        const profile = await fetchProfileAndPerformance(session.user.id);
         setUser({ ...session.user, profile });
         setLoading(false);
       } else if (event === 'SIGNED_OUT') {
@@ -136,57 +129,36 @@ const App: React.FC = () => {
       subscription.unsubscribe();
       if (authTimeoutRef.current) clearTimeout(authTimeoutRef.current);
     };
-  }, [initAuth, fetchProfile]);
+  }, [initAuth, fetchProfileAndPerformance]);
 
   const profile = user?.profile as UserProfile;
   const isSubscriber = profile?.is_active_subscriber === true;
   const usageAmount = profile?.monthly_api_usage ?? 0;
   const canAccessAI = isSubscriber || (usageAmount < API_LIMIT_CONFIG.TRIAL_LIMIT_BRL);
 
-  if (loading) return (
-    <div className="h-screen w-screen bg-[#050507] flex flex-col items-center justify-center p-8 overflow-hidden text-center">
-      <div className="relative mb-8">
-        <div className="w-24 h-24 border-4 border-blue-600/5 rounded-full"></div>
-        <div className="absolute inset-0 w-24 h-24 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <div className="absolute inset-0 flex items-center justify-center">
-           <span className="text-blue-600 animate-pulse font-black italic text-xl">C</span>
+  // NOVO ESTADO DE CARREGAMENTO: BOTÃO VERMELHO PARA REPARO SE TRAVAR
+  if (loading || authError) return (
+    <div className="h-screen w-screen bg-[#050507] flex flex-col items-center justify-center p-8 text-center">
+      {!authError ? (
+        <div className="space-y-8 animate-pulse">
+           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+           <p className="text-[10px] font-black text-white uppercase tracking-[0.4em]">Sincronizando Terminal Elite...</p>
         </div>
-      </div>
-      
-      <div className="space-y-4 mb-12">
-        <p className="text-[14px] font-black text-white uppercase tracking-[0.4em]">Iniciando Terminal Elite</p>
-        <div className="flex justify-center gap-1">
-           {[...Array(3)].map((_, i) => (
-             <div key={i} className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}></div>
-           ))}
+      ) : (
+        <div className="max-w-xs w-full space-y-8 animate-in zoom-in duration-500">
+           <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto text-3xl mb-4">⚠️</div>
+           <div className="space-y-2">
+              <h2 className="text-xl font-black text-white uppercase tracking-tighter">CONEXÃO INSTÁVEL</h2>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">Detectamos um atraso na rede. Clique no botão abaixo para restaurar e refazer o login.</p>
+           </div>
+           <button 
+             onClick={handleResetAndReload}
+             className="w-full bg-rose-600 hover:bg-rose-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-rose-600/30 transition-all active:scale-95"
+           >
+             LIMPAR CACHE E REENTRAR
+           </button>
         </div>
-        <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold max-w-xs mx-auto leading-relaxed">Sincronizando protocolos de IA e segurança avançada...</p>
-      </div>
-
-      <div className={`space-y-4 w-full max-w-sm transition-all duration-1000 transform ${authError ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95 pointer-events-none'}`}>
-         <div className="p-8 bg-zinc-900/30 border border-white/5 rounded-[3rem] backdrop-blur-xl space-y-6 shadow-2xl shadow-blue-600/5">
-            <div className="space-y-2">
-               <p className="text-[10px] text-blue-500 font-black uppercase tracking-[0.3em]">Otimização Sugerida</p>
-               <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">Detectamos que sua sessão de segurança precisa ser renovada ou a quota de IA excedeu.</p>
-            </div>
-            
-            <button 
-              onClick={handleOptimizeAndReload}
-              className="group relative w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/40 transition-all active:scale-95 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              OTIMIZAR E ENTRAR NO TERMINAL
-            </button>
-
-            <button 
-              onClick={handleSelectApiKey}
-              className="w-full text-[9px] font-black text-zinc-500 hover:text-blue-400 uppercase tracking-widest transition-colors"
-            >
-              ⚙️ CONFIGURAR CHAVE PRÓPRIA (GOOGLE AI STUDIO)
-            </button>
-         </div>
-         <p className="text-[8px] text-zinc-700 font-bold uppercase tracking-[0.5em]">Protocolo v2.6 - Resiliência de IA</p>
-      </div>
+      )}
     </div>
   );
 
@@ -207,12 +179,30 @@ const App: React.FC = () => {
         <a href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} target="_blank" className="block w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-blue-600/30 transition-all active:scale-95">
           DESBLOQUEAR TUDO AGORA
         </a>
-        <button onClick={handleSelectApiKey} className="w-full text-[9px] font-black text-zinc-600 hover:text-blue-500 uppercase tracking-widest transition-all">
-          Usar Chave Própria (Avançado)
-        </button>
       </div>
     </div>
   );
+
+  const handleUpdatePerformance = (isCorrect: boolean, subject: string) => {
+    setPerformance(prev => {
+      const stats = { ...(prev.subjectStats || {}) };
+      const current = stats[subject] || { total: 0, correct: 0 };
+      const newXp = (prev.xp || 0) + (isCorrect ? 30 : 5);
+      const newPerf = {
+        ...prev,
+        totalAnswered: (prev.totalAnswered || 0) + 1,
+        correctAnswers: (prev.correctAnswers || 0) + (isCorrect ? 1 : 0),
+        xp: newXp,
+        level: Math.floor(newXp / 1000) + 1,
+        subjectStats: { ...stats, [subject]: { total: current.total + 1, correct: current.correct + (isCorrect ? 1 : 0) } }
+      };
+      
+      // Salva no Supabase
+      if (user?.id) saveUserPerformance(user.id, newPerf);
+      
+      return newPerf;
+    });
+  };
 
   return (
     <div className={`flex flex-col md:flex-row min-h-screen transition-colors duration-500 ${theme === 'dark' ? 'bg-[#050507] text-zinc-100' : 'bg-[#f8fafc] text-slate-900'}`}>
@@ -230,23 +220,7 @@ const App: React.FC = () => {
              <SubscriptionWall />
           ) : (
             <div className="relative">
-              {activeTab === 'simulator' && <Simulator onQuestionAnswered={(isCorrect, subject) => {
-                setPerformance(prev => {
-                  const stats = { ...(prev.subjectStats || {}) };
-                  const current = stats[subject] || { total: 0, correct: 0 };
-                  const newXp = (prev.xp || 0) + (isCorrect ? 30 : 5);
-                  const newPerf = {
-                    ...prev,
-                    totalAnswered: (prev.totalAnswered || 0) + 1,
-                    correctAnswers: (prev.correctAnswers || 0) + (isCorrect ? 1 : 0),
-                    xp: newXp,
-                    level: Math.floor(newXp / 1000) + 1,
-                    subjectStats: { ...stats, [subject]: { total: current.total + 1, correct: current.correct + (isCorrect ? 1 : 0) } }
-                  };
-                  localStorage.setItem('user_performance', JSON.stringify(newPerf));
-                  return newPerf;
-                });
-              }} theme={theme} />}
+              {activeTab === 'simulator' && <Simulator onQuestionAnswered={handleUpdatePerformance} theme={theme} />}
               {activeTab === 'essay' && <EssaySimulator theme={theme} />}
               {activeTab === 'mindmap' && <MindMapCreator theme={theme} />}
               {activeTab === 'flashcards' && <Flashcards theme={theme} />}
