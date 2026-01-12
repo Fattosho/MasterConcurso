@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 
@@ -58,6 +59,7 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false, theme }) => {
     for (let i = 0; i < data.length; i++) int16[i] = data[i] * 32768;
     return {
       data: encode(new Uint8Array(int16.buffer)),
+      // The supported audio MIME type is 'audio/pcm'.
       mimeType: 'audio/pcm;rate=16000',
     };
   };
@@ -80,6 +82,7 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false, theme }) => {
             scriptProcessor.onaudioprocess = (e) => {
               const inputData = e.inputBuffer.getChannelData(0);
               const pcmBlob = createBlob(inputData);
+              // CRITICAL: Solely rely on sessionPromise resolves and then call `session.sendRealtimeInput`
               sessionPromise.then(session => session.sendRealtimeInput({ media: pcmBlob }));
             };
             source.connect(scriptProcessor);
@@ -89,22 +92,38 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false, theme }) => {
             const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
             if (base64Audio && audioContextRef.current) {
               const ctx = audioContextRef.current;
+              // Scheduling each new audio chunk to start at this time ensures smooth, gapless playback.
               nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
               const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
               const source = ctx.createBufferSource();
               source.buffer = audioBuffer;
               source.connect(ctx.destination);
               source.addEventListener('ended', () => sourcesRef.current.delete(source));
+              
               source.start(nextStartTimeRef.current);
               nextStartTimeRef.current += audioBuffer.duration;
               sourcesRef.current.add(source);
+            }
+
+            // Handle interruption according to the latest Gemini Live API guidelines
+            const interrupted = message.serverContent?.interrupted;
+            if (interrupted) {
+              for (const source of sourcesRef.current.values()) {
+                try {
+                  source.stop();
+                } catch (e) {
+                  // Ignore errors from sources already stopped
+                }
+                sourcesRef.current.delete(source);
+              }
+              nextStartTimeRef.current = 0;
             }
           },
           onclose: () => setMode('none'),
           onerror: (e) => console.error(e)
         },
         config: {
-          responseModalities: [Modality.AUDIO],
+          responseModalities: [Modality.AUDIO], // Must be an array with a single `Modality.AUDIO` element.
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
           systemInstruction: 'Você é um Mentor Técnico para concursos. Suas respostas devem ser curtas, diretas e estritamente profissionais. Evite saudações longas.'
         }
@@ -118,7 +137,11 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false, theme }) => {
 
   const stopLiveSession = () => {
     if (sessionRef.current) sessionRef.current.close();
-    sourcesRef.current.forEach(s => s.stop());
+    sourcesRef.current.forEach(s => {
+      try {
+        s.stop();
+      } catch (e) {}
+    });
     sourcesRef.current.clear();
     setMode('none');
   };
@@ -216,7 +239,7 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false, theme }) => {
              <button onClick={() => setMode('none')} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-600/10 px-4 py-2 rounded-xl transition-all">Fechar</button>
           </div>
 
-          <div className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide">
+          <div className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide" ref={scrollRef}>
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] p-6 rounded-[2rem] text-[14px] leading-relaxed whitespace-pre-wrap shadow-xl ${
@@ -228,6 +251,13 @@ const Professor: React.FC<ProfessorProps> = ({ isFloat = false, theme }) => {
                 </div>
               </div>
             ))}
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className={`p-6 rounded-[2rem] ${theme === 'dark' ? 'bg-zinc-900 text-zinc-300' : 'bg-slate-100 text-slate-800'}`}>
+                  Digitando...
+                </div>
+              </div>
+            )}
           </div>
 
           <div className={`p-6 border-t flex gap-4 ${theme === 'dark' ? 'bg-zinc-950 border-white/5' : 'bg-slate-50 border-slate-200'}`}>

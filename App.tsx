@@ -12,6 +12,8 @@ import AuthScreen from './components/AuthScreen';
 import { UserPerformance, UserProfile } from './types';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
+const KIWIFY_CHECKOUT_URL = "https://pay.kiwify.com.br/SEU_LINK_AQUI";
+
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +22,13 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('app-theme');
     return (saved as 'dark' | 'light') || 'dark';
   });
+
+  // Added toggleTheme function to resolve "Cannot find name 'toggleTheme'" error
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('app-theme', newTheme);
+  };
 
   const [performance, setPerformance] = useState<UserPerformance>(() => {
     try {
@@ -38,10 +47,19 @@ const App: React.FC = () => {
         .eq('id', userId)
         .single();
       
-      if (error) {
-        console.warn("Perfil não encontrado, tentando prosseguir apenas com dados de auth.");
-        return null;
+      if (error) return null;
+
+      // Se não houver trial_started_at, inicializamos agora
+      if (!data.trial_started_at) {
+        const { data: updated } = await supabase
+          .from('profiles')
+          .update({ trial_started_at: new Date().toISOString() })
+          .eq('id', userId)
+          .select()
+          .single();
+        return updated as UserProfile;
       }
+
       return data as UserProfile;
     } catch (err) {
       console.error("Erro ao buscar perfil:", err);
@@ -50,7 +68,6 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // Função única para inicializar a sessão
     const initAuth = async () => {
       if (!isSupabaseConfigured) {
         setLoading(false);
@@ -58,9 +75,7 @@ const App: React.FC = () => {
       }
 
       try {
-        // 1. Verificar se já existe uma sessão ativa no sessionStorage
         const { data: { session } } = await supabase.auth.getSession();
-        
         if (session) {
           const profile = await fetchProfile(session.user.id);
           setUser({ ...session.user, profile });
@@ -68,7 +83,6 @@ const App: React.FC = () => {
           setUser(null);
         }
       } catch (err) {
-        console.error("Falha na inicialização do Auth:", err);
         setUser(null);
       } finally {
         setLoading(false);
@@ -77,69 +91,93 @@ const App: React.FC = () => {
 
     initAuth();
 
-    // 2. Escutar mudanças de estado (Login/Logout/Token Expired)
-    let authListener: any = null;
     if (isSupabaseConfigured) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
           const profile = await fetchProfile(session.user.id);
           setUser({ ...session.user, profile });
-          setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          setLoading(false);
         }
       });
-      authListener = subscription;
     }
-
-    return () => {
-      if (authListener) authListener.unsubscribe();
-    };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('user_performance', JSON.stringify(performance));
-  }, [performance]);
+  // LÓGICA DE BLOQUEIO DE ACESSO
+  const checkAccess = () => {
+    if (!user || !user.profile) return { allowed: false, reason: 'loading' };
+    
+    const profile = user.profile as UserProfile;
+    const now = new Date();
+    const trialStart = new Date(profile.trial_started_at);
+    const diffHours = (now.getTime() - trialStart.getTime()) / (1000 * 60 * 60);
+    const diffDays = diffHours / 24;
 
-  useEffect(() => {
-    document.documentElement.className = theme;
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-
-  const handleLogout = async () => {
-    if (isSupabaseConfigured) {
-      await supabase.auth.signOut();
-      // O listener onAuthStateChange cuidará do setUser(null)
-    } else {
-      setUser(null);
+    // 1. Bloqueio por Consumo de API (R$ 20,00)
+    if (profile.api_usage_brl >= 20) {
+      return { allowed: false, reason: 'api_limit' };
     }
+
+    // 2. Se for Premium, acesso liberado (exceto se atingir limite de API)
+    if (profile.is_premium) return { allowed: true };
+
+    // 3. Regras de Trial para não-pagantes
+    if (activeTab === 'simulator') {
+      if (diffDays > 3) return { allowed: false, reason: 'trial_simulator_expired' };
+    } else if (activeTab !== 'dashboard') {
+      if (diffHours > 2) return { allowed: false, reason: 'trial_tools_expired' };
+    }
+
+    return { allowed: true };
   };
 
-  const handleQuestionAnswered = (isCorrect: boolean, subject: string) => {
-    setPerformance(prev => {
-      const stats = { ...(prev.subjectStats || {}) };
-      const current = stats[subject] || { total: 0, correct: 0 };
-      const newXp = (prev.xp || 0) + (isCorrect ? 30 : 5);
-      const newLevel = Math.floor(newXp / 1000) + 1;
-      
-      return {
-        ...prev,
-        totalAnswered: (prev.totalAnswered || 0) + 1,
-        correctAnswers: (prev.correctAnswers || 0) + (isCorrect ? 1 : 0),
-        xp: newXp,
-        level: newLevel,
-        subjectStats: {
-          ...stats,
-          [subject]: {
-            total: current.total + 1,
-            correct: current.correct + (isCorrect ? 1 : 0)
-          }
-        }
-      };
-    });
+  const access = checkAccess();
+
+  const UpgradeOverlay = ({ reason }: { reason: string }) => {
+    const messages: Record<string, any> = {
+      api_limit: {
+        title: "Limite de Cota Atingido",
+        desc: "Você atingiu o limite de R$ 20,00 em processamento de IA para este mês. Isso garante a sustentabilidade da plataforma."
+      },
+      trial_simulator_expired: {
+        title: "Trial de 3 Dias Encerrado",
+        desc: "Seu período de degustação da Arena de Combate terminou. Torne-se Elite para continuar treinando."
+      },
+      trial_tools_expired: {
+        title: "Ferramentas Bloqueadas",
+        desc: "O acesso às ferramentas avançadas (Redação, Mapas, Flashcards) expira após 2 horas no plano gratuito."
+      }
+    };
+
+    const msg = messages[reason] || { title: "Acesso Restrito", desc: "Assine o plano mensal para liberar o acesso total." };
+
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-12 glass-card rounded-[4rem] border border-blue-600/30 animate-in zoom-in duration-500">
+        <div className="w-24 h-24 bg-blue-600/10 rounded-full flex items-center justify-center text-5xl mb-8 shadow-[0_0_50px_rgba(37,99,235,0.2)]">
+          💎
+        </div>
+        <h2 className="text-4xl font-black uppercase tracking-tighter mb-4 glow-text">{msg.title}</h2>
+        <p className="text-zinc-500 font-bold text-sm max-w-md mb-10 leading-relaxed">
+          {msg.desc}
+        </p>
+        <div className="flex flex-col gap-4 w-full max-w-sm">
+          <a 
+            href={KIWIFY_CHECKOUT_URL} 
+            target="_blank"
+            className="bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl shadow-blue-600/30"
+          >
+            LIBERAR ACESSO ELITE (R$ 97/mês)
+          </a>
+          <button 
+            onClick={() => setActiveTab('dashboard')}
+            className="text-zinc-500 font-black text-[10px] uppercase tracking-widest hover:text-white transition-colors"
+          >
+            Voltar ao Dashboard
+          </button>
+        </div>
+        <p className="mt-8 text-[9px] text-zinc-700 font-bold uppercase tracking-widest">Pagamento Seguro via Kiwify</p>
+      </div>
+    );
   };
 
   if (loading) {
@@ -147,7 +185,7 @@ const App: React.FC = () => {
       <div className="h-screen w-screen bg-[#050508] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.5em] animate-pulse">Sincronizando Sistema Elite</p>
+          <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.5em] animate-pulse">Autenticando Credenciais Elite</p>
         </div>
       </div>
     );
@@ -165,35 +203,24 @@ const App: React.FC = () => {
         theme={theme} 
         toggleTheme={toggleTheme} 
         user={user} 
-        onLogout={handleLogout} 
+        onLogout={async () => { await supabase.auth.signOut(); setUser(null); }} 
       />
       
       <main className="flex-1 p-4 md:p-8 lg:p-12 overflow-y-auto relative z-10 scrollbar-hide">
-        {!isSupabaseConfigured && (
-          <div className="max-w-6xl mx-auto mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <span className="text-xl">⚠️</span>
-                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-relaxed">
-                  MODO OFFLINE ATIVO: As chaves do Supabase não foram configuradas na VERCEL.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <a href="https://vercel.com/" target="_blank" className="text-[9px] font-black bg-amber-500 text-black px-4 py-2 rounded-lg uppercase">Painel Vercel</a>
-                <button onClick={() => window.location.reload()} className="text-[9px] font-black bg-zinc-800 text-white px-4 py-2 rounded-lg uppercase">Recarregar</button>
-              </div>
-            </div>
-          </div>
-        )}
-        
         <div className="max-w-6xl mx-auto w-full page-transition">
-          {activeTab === 'dashboard' && <Dashboard performance={performance} setActiveTab={setActiveTab} theme={theme} />}
-          {activeTab === 'simulator' && <Simulator onQuestionAnswered={handleQuestionAnswered} theme={theme} />}
-          {activeTab === 'essay' && <EssaySimulator theme={theme} />}
-          {activeTab === 'mindmap' && <MindMapCreator theme={theme} />}
-          {activeTab === 'flashcards' && <Flashcards theme={theme} />}
-          {activeTab === 'mnemonics' && <MnemonicGenerator theme={theme} />}
-          {activeTab === 'study-plan' && <StudyPlan theme={theme} />}
+          {!access.allowed && activeTab !== 'dashboard' ? (
+            <UpgradeOverlay reason={access.reason} />
+          ) : (
+            <>
+              {activeTab === 'dashboard' && <Dashboard performance={performance} setActiveTab={setActiveTab} theme={theme} />}
+              {activeTab === 'simulator' && <Simulator onQuestionAnswered={(c, s) => {}} theme={theme} />}
+              {activeTab === 'essay' && <EssaySimulator theme={theme} />}
+              {activeTab === 'mindmap' && <MindMapCreator theme={theme} />}
+              {activeTab === 'flashcards' && <Flashcards theme={theme} />}
+              {activeTab === 'mnemonics' && <MnemonicGenerator theme={theme} />}
+              {activeTab === 'study-plan' && <StudyPlan theme={theme} />}
+            </>
+          )}
         </div>
       </main>
     </div>
