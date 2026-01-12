@@ -24,10 +24,9 @@ export interface UserProfile {
   full_name: string;
   email: string;
   whatsapp: string;
-  is_premium: boolean;
-  trial_started_at: string;
-  api_usage_brl: number;
-  subscription_expires_at?: string;
+  is_active_subscriber: boolean;
+  monthly_api_usage: number;
+  last_reset_month: number;
 }
 
 export interface Question {

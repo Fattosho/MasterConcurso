@@ -1,14 +1,17 @@
+
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { UserPerformance } from '../types';
+import { UserPerformance, UserProfile } from '../types';
+import { KIWIFY_CONFIG, API_LIMIT_CONFIG } from '../services/supabaseClient';
 
 interface DashboardProps { 
   performance: UserPerformance; 
   setActiveTab: (tab: string) => void;
   theme: 'dark' | 'light';
+  profile?: UserProfile;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme }) => {
+const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme, profile }) => {
   const correct = performance.correctAnswers || 0;
   const total = performance.totalAnswered || 0;
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -17,6 +20,11 @@ const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme 
   const level = performance.level || Math.floor(xp / 1000) + 1;
   const xpInLevel = xp % 1000;
   const progressPercent = (xpInLevel / 1000) * 100;
+
+  const isSubscriber = profile?.is_active_subscriber === true;
+  const usageAmount = profile?.monthly_api_usage ?? 0;
+  const trialRemaining = Math.max(0, API_LIMIT_CONFIG.TRIAL_LIMIT_BRL - usageAmount);
+  const trialPercent = (usageAmount / API_LIMIT_CONFIG.TRIAL_LIMIT_BRL) * 100;
 
   const chartColors = theme === 'dark' 
     ? { primary: '#3b82f6', empty: '#18181b', text: '#52525b' }
@@ -31,6 +39,35 @@ const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme 
 
   return (
     <div className="space-y-10 page-transition">
+      {/* AVISO DE TRIAL / UPGRADE PREMIUM */}
+      {!isSubscriber && (
+        <div className={`p-8 rounded-[2.5rem] border flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top-10 duration-700 ${
+          theme === 'dark' ? 'bg-amber-600/5 border-amber-600/20' : 'bg-amber-50 border-amber-200'
+        }`}>
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-amber-600/20 rounded-2xl flex items-center justify-center text-3xl">⏳</div>
+            <div>
+              <h4 className="font-black text-sm uppercase tracking-widest text-amber-600">Acesso Experimental Ativo</h4>
+              <p className={`text-[11px] font-bold ${theme === 'dark' ? 'text-zinc-400' : 'text-slate-500'}`}>
+                Restam <span className="text-amber-500 font-black">R$ {trialRemaining.toFixed(2)}</span> de processamento gratuito para seu teste.
+              </p>
+              <div className="w-full h-1.5 bg-zinc-800 rounded-full mt-3 overflow-hidden">
+                <div className="h-full bg-amber-500 transition-all duration-1000" style={{ width: `${trialPercent}%` }}></div>
+              </div>
+            </div>
+          </div>
+          <a 
+            href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} 
+            target="_blank" 
+            className="group relative px-10 py-4 bg-amber-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-500 transition-all shadow-xl shadow-amber-600/20 active:scale-95"
+          >
+            <span className="relative z-10 flex items-center gap-2">
+              <span className="animate-pulse">💎</span> SEJA PREMIUM AGORA
+            </span>
+          </a>
+        </div>
+      )}
+
       <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
         <div className="space-y-3">
           <div className="flex items-center gap-3">
@@ -40,14 +77,27 @@ const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme 
           <p className={`${theme === 'dark' ? 'text-zinc-500' : 'text-slate-500'} text-sm font-bold uppercase tracking-[0.2em] ml-5`}>Sincronização de Progresso Cognitivo</p>
         </div>
         
-        <div className={`flex items-center gap-8 p-8 rounded-[2.5rem] border group hover:scale-105 transition-all duration-500 ${theme === 'dark' ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-slate-200 shadow-xl'}`}>
-           <div className="text-right">
-              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-1">REDE COMPETITIVA</p>
-              <p className="text-3xl font-black text-blue-600 leading-none uppercase italic tracking-tighter">ELITE LV.{level}</p>
-           </div>
-           <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center border border-white/10 shadow-[0_10px_30px_rgba(37,99,235,0.4)] group-hover:rotate-12 transition-transform">
-              <span className="text-3xl">⚡</span>
-           </div>
+        <div className="flex flex-col md:flex-row gap-4">
+          {!isSubscriber && (
+            <a 
+              href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} 
+              target="_blank"
+              className="flex items-center gap-4 p-6 px-8 rounded-[2rem] bg-gradient-to-r from-blue-700 to-indigo-700 text-white font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-blue-600/20 group"
+            >
+              <span>Liberação Total</span>
+              <span className="text-xl group-hover:rotate-12 transition-transform">💎</span>
+            </a>
+          )}
+
+          <div className={`flex items-center gap-8 p-8 rounded-[2.5rem] border group hover:scale-105 transition-all duration-500 ${theme === 'dark' ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-slate-200 shadow-xl'}`}>
+             <div className="text-right">
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-1">REDE COMPETITIVA</p>
+                <p className="text-3xl font-black text-blue-600 leading-none uppercase italic tracking-tighter">ELITE LV.{level}</p>
+             </div>
+             <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center border border-white/10 shadow-[0_10px_30px_rgba(37,99,235,0.4)] group-hover:rotate-12 transition-transform">
+                <span className="text-3xl">⚡</span>
+             </div>
+          </div>
         </div>
       </header>
 
@@ -163,15 +213,15 @@ const Dashboard: React.FC<DashboardProps> = ({ performance, setActiveTab, theme 
               <span className="animate-pulse">●</span> DIRETRIZ ESTRATÉGICA
            </div>
            <h4 className="text-3xl md:text-5xl font-black leading-tight uppercase tracking-tighter glow-text">Potencialize seu <span className="text-blue-600">Active Recall</span> agora.</h4>
-           <p className={`${theme === 'dark' ? 'text-zinc-500' : 'text-slate-500'} font-bold text-sm tracking-tight leading-relaxed`}>
-              Nossa IA identificou uma janela de oportunidade cognitiva em <span className="text-zinc-300">Direito Administrativo</span>. Realizar uma sessão de flashcards agora aumentará sua retenção em 40%.
+           <p className={`${theme === 'dark' ? 'text-zinc-300' : 'text-slate-500'} font-bold text-sm tracking-tight leading-relaxed`}>
+              Sua jornada cognitiva depende da consistência técnica. A cada sessão finalizada, sua chance de aprovação aumenta em até 15%.
            </p>
          </div>
          <button 
-            onClick={() => setActiveTab('flashcards')}
+            onClick={() => setActiveTab('simulator')}
             className="group relative px-16 py-7 bg-blue-600 text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.3em] transition-all hover:bg-blue-500 hover:scale-105 active:scale-95 shadow-[0_20px_50px_rgba(37,99,235,0.4)] whitespace-nowrap overflow-hidden"
          >
-            <span className="relative z-10">EXECUTAR REVISÃO</span>
+            <span className="relative z-10">ACESSAR SIMULADOR</span>
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
          </button>
       </div>
