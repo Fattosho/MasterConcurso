@@ -94,10 +94,11 @@ const App: React.FC = () => {
   const isSubscriber = profile?.is_active_subscriber === true;
   const usageAmount = profile?.monthly_api_usage ?? 0;
   
-  // Acesso Master se for Assinante OU estiver dentro do limite trial experimental
-  const canAccessAI = isSubscriber || (usageAmount < API_LIMIT_CONFIG.TRIAL_LIMIT_BRL);
+  // Acesso permitido se for assinante OU se ainda tiver saldo trial
+  const hasTrialBalance = usageAmount < API_LIMIT_CONFIG.TRIAL_LIMIT_BRL;
+  const canAccessAI = isSubscriber || hasTrialBalance;
   
-  // Bloqueio por abuso de faturamento (teto de custo Gemini)
+  // Bloqueio por abuso de faturamento total (teto de custo Gemini)
   const usageLimitReached = usageAmount >= API_LIMIT_CONFIG.MONTHLY_LIMIT_BRL;
 
   if (loading) return (
@@ -150,7 +151,17 @@ const App: React.FC = () => {
                </p>
              </div>
           ) : (
-            <>
+            <div className="relative">
+              {!isSubscriber && activeTab !== 'dashboard' && (
+                <div className="mb-8 flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl animate-in slide-in-from-top-4">
+                  <span className="text-lg">💎</span>
+                  <div className="flex-1">
+                    <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest leading-none">Acesso Experimental Ativo</p>
+                    <p className="text-[10px] text-zinc-500 font-bold mt-1">Você pode testar esta ferramenta livremente até o limite trial.</p>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'simulator' && <Simulator onQuestionAnswered={(isCorrect, subject) => {
                 setPerformance(prev => {
                   const stats = { ...(prev.subjectStats || {}) };
@@ -173,7 +184,7 @@ const App: React.FC = () => {
               {activeTab === 'flashcards' && <Flashcards theme={theme} />}
               {activeTab === 'mnemonics' && <MnemonicGenerator theme={theme} />}
               {activeTab === 'study-plan' && <StudyPlan theme={theme} />}
-            </>
+            </div>
           )}
         </div>
       </main>
