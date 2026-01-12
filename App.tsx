@@ -38,47 +38,64 @@ const App: React.FC = () => {
         .eq('id', userId)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.warn("Perfil não encontrado, tentando prosseguir apenas com dados de auth.");
+        return null;
+      }
       return data as UserProfile;
     } catch (err) {
-      console.warn("Perfil não encontrado na DB ou DB offline:", err);
+      console.error("Erro ao buscar perfil:", err);
       return null;
     }
   };
 
   useEffect(() => {
-    const checkUser = async () => {
+    // Função única para inicializar a sessão
+    const initAuth = async () => {
       if (!isSupabaseConfigured) {
         setLoading(false);
         return;
       }
 
       try {
+        // 1. Verificar se já existe uma sessão ativa no sessionStorage
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const profile = await fetchProfile(session.user.id);
-          setUser({ ...session.user, profile });
-        }
-      } catch (err) {
-        console.error("Erro na verificação de sessão:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkUser();
-
-    if (isSupabaseConfigured) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        
         if (session) {
           const profile = await fetchProfile(session.user.id);
           setUser({ ...session.user, profile });
         } else {
           setUser(null);
         }
+      } catch (err) {
+        console.error("Falha na inicialização do Auth:", err);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // 2. Escutar mudanças de estado (Login/Logout/Token Expired)
+    let authListener: any = null;
+    if (isSupabaseConfigured) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          const profile = await fetchProfile(session.user.id);
+          setUser({ ...session.user, profile });
+          setLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+        }
       });
-      return () => subscription.unsubscribe();
+      authListener = subscription;
     }
+
+    return () => {
+      if (authListener) authListener.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -95,8 +112,10 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
+      // O listener onAuthStateChange cuidará do setUser(null)
+    } else {
+      setUser(null);
     }
-    setUser(null);
   };
 
   const handleQuestionAnswered = (isCorrect: boolean, subject: string) => {
@@ -145,8 +164,8 @@ const App: React.FC = () => {
         setActiveTab={setActiveTab} 
         theme={theme} 
         toggleTheme={toggleTheme} 
-        user={user || { email: 'Modo Offline', profile: { full_name: 'Visitante' } }} 
-        onLogout={isSupabaseConfigured ? handleLogout : undefined} 
+        user={user} 
+        onLogout={handleLogout} 
       />
       
       <main className="flex-1 p-4 md:p-8 lg:p-12 overflow-y-auto relative z-10 scrollbar-hide">

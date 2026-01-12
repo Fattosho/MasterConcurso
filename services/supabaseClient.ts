@@ -3,8 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 
 /**
  * IMPORTANTE:
- * O erro 'supabaseUrl is required' ocorre quando createClient é chamado com strings vazias.
- * Para evitar o crash imediato do app, usamos placeholders se as variáveis estiverem ausentes.
+ * O uso de sessionStorage garante que a sessão seja destruída quando a aba é fechada.
  */
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
@@ -13,10 +12,18 @@ const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 // Flag para verificar se a integração está realmente ativa
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl.includes('supabase.co'));
 
-// Inicializamos o cliente. Se não houver URL, usamos um placeholder para evitar o erro de 'required' do construtor
+// Inicializamos o cliente com configuração de persistência em sessão
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder-to-avoid-crash.supabase.co',
-  supabaseAnonKey || 'no-key-provided'
+  supabaseAnonKey || 'no-key-provided',
+  {
+    auth: {
+      storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
+  }
 );
 
 if (!isSupabaseConfigured) {
