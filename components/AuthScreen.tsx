@@ -39,11 +39,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         if (authError) throw authError;
         
         // Buscar perfil adicional
-        const { data: profile } = await supabase
+        const { data: profile, error: profileFetchError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
+
+        // Se logar mas não tiver perfil, permite entrar mas avisa no log
+        if (profileFetchError) console.warn("Perfil não encontrado:", profileFetchError.message);
 
         onLoginSuccess({ ...data.user, profile });
       } else {
@@ -56,6 +59,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
           email,
           password,
         });
+        
         if (authError) throw authError;
 
         if (data.user) {
@@ -72,10 +76,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
             ]);
           
           if (profileError) {
-            console.error("Erro ao salvar perfil:", profileError);
-            // Mesmo se o perfil falhar, o usuário foi criado no Auth.
-            // Mas aqui lançamos o erro para feedback visual.
-            throw new Error("Usuário criado, mas erro ao salvar dados complementares.");
+            console.error("Erro detalhado do banco:", profileError);
+            // Agora mostramos o erro real do Supabase para você saber se é falta de tabela ou RLS
+            throw new Error(`Auth OK, mas DB erro: ${profileError.message}`);
           }
         }
 
@@ -124,7 +127,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
                 <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Aviso de Configuração</p>
               </div>
               <p className="text-[9px] text-zinc-400 font-medium leading-relaxed uppercase tracking-tight">
-                O Supabase não foi detectado. Para usar o sistema de login e salvar dados na nuvem, configure as chaves no Netlify.
+                Chaves do Supabase não configuradas. Verifique seu dashboard no Netlify.
               </p>
               <button 
                 onClick={() => onLoginSuccess({ email: 'visitante@local.dev', profile: { full_name: 'Usuário Local' } })}
