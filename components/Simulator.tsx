@@ -20,7 +20,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [answeredCount, setAnsweredCount] = useState(0);
 
-  // Fila de pré-carregamento
+  // Buffer de prefetching
   const [questionQueue, setQuestionQueue] = useState<Question[]>([]);
   const isPrefetching = useRef(false);
 
@@ -44,18 +44,16 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
     'UPENET', 'Itame', 'IV/UFG', 'IDIB', 'Ivin', 'Instituto Acesso'
   ];
 
-  // Função para manter a fila com 2 questões
-  const prefetchQuestions = async (currentBanca: Banca, currentMateria: Materia, currentNivel: Nivel) => {
+  const prefetchQuestions = async (targetBanca: Banca, targetMateria: Materia, targetNivel: Nivel) => {
     if (isPrefetching.current || questionQueue.length >= 2) return;
-    
     isPrefetching.current = true;
     try {
       while (questionQueue.length < 2) {
-        const nextQ = await generateQuestion(currentBanca, currentMateria, currentNivel);
+        const nextQ = await generateQuestion(targetBanca, targetMateria, targetNivel);
         setQuestionQueue(prev => [...prev, nextQ]);
       }
     } catch (e) {
-      console.warn("Erro ao pre-carregar questão:", e);
+      console.warn("Erro no prefetching:", e);
     } finally {
       isPrefetching.current = false;
     }
@@ -64,14 +62,12 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
   const startSession = async () => {
     setLoading(true);
     setAnsweredCount(0);
-    setQuestionQueue([]); // Limpa fila anterior
+    setQuestionQueue([]);
     try {
-      // Carrega a primeira imediatamente
       const q = await generateQuestion(banca, materia, nivel);
       setCurrentQuestion(q);
       setIsSessionActive(true);
-      
-      // Inicia prefetch das próximas 2 em background
+      // Inicia prefetch das próximas 2 enquanto o usuário lê a primeira
       prefetchQuestions(banca, materia, nivel);
     } catch (e: any) {
       alert(e.message || "Erro ao carregar questão.");
@@ -88,7 +84,7 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
     setAnsweredCount(prev => prev + 1);
     onQuestionAnswered(isCorrect, materia);
     
-    // Aproveita o tempo que o usuário está lendo a explicação para garantir o buffer
+    // Aproveita que o usuário está lendo a explicação para garantir o buffer
     prefetchQuestions(banca, materia, nivel);
   };
 
@@ -96,33 +92,27 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
     if (answeredCount >= questionCount) {
       setIsSessionActive(false);
       setCurrentQuestion(null);
-      setQuestionQueue([]);
       return;
     }
 
-    setShowExplanation(false);
-    setSelectedOption(null);
-
-    // Verifica se temos questão na fila
     if (questionQueue.length > 0) {
-      const nextFromQueue = questionQueue[0];
+      const nextQ = questionQueue[0];
       setQuestionQueue(prev => prev.slice(1));
-      setCurrentQuestion(nextFromQueue);
-      
-      // Gatilho para repor a fila
+      setCurrentQuestion(nextQ);
+      setShowExplanation(false);
+      setSelectedOption(null);
+      // Repõe o buffer
       prefetchQuestions(banca, materia, nivel);
     } else {
-      // Fallback: Caso a fila esteja vazia (ex: internet lenta)
       setLoading(true);
       try {
         const q = await generateQuestion(banca, materia, nivel);
         setCurrentQuestion(q);
+        setShowExplanation(false);
+        setSelectedOption(null);
         prefetchQuestions(banca, materia, nivel);
-      } catch (e: any) { 
-        alert(e.message || "Falha na próxima questão."); 
-      } finally { 
-        setLoading(false); 
-      }
+      } catch (e: any) { alert(e.message || "Falha na próxima questão."); }
+      finally { setLoading(false); }
     }
   };
 
@@ -137,9 +127,9 @@ const Simulator: React.FC<SimulatorProps> = ({ onQuestionAnswered, theme }) => {
         </div>
         {isSessionActive && (
           <div className="flex items-center gap-3">
-            <div className={`text-[8px] font-black uppercase px-3 py-1.5 rounded-full border border-blue-600/30 text-blue-500 ${questionQueue.length > 0 ? 'animate-pulse' : 'opacity-0'}`}>
-              Buffer Ready ({questionQueue.length})
-            </div>
+            {questionQueue.length > 0 && (
+              <div className="text-[7px] font-black text-blue-500 animate-pulse uppercase tracking-widest">Buffer IA: Pronto</div>
+            )}
             <div className="bg-blue-600 px-4 py-2 rounded-xl text-white text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20">
               PROGRESSO: {answeredCount}/{questionCount}
             </div>

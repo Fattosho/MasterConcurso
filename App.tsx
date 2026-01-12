@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Simulator from './components/Simulator';
@@ -15,10 +15,13 @@ import { supabase, isSupabaseConfigured, KIWIFY_CONFIG, API_LIMIT_CONFIG } from 
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('app-theme') as 'dark' | 'light') || 'dark';
   });
+
+  const authTimeoutRef = useRef<any>(null);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -36,16 +39,22 @@ const App: React.FC = () => {
 
   const fetchProfile = useCallback(async (userId: string) => {
     if (!isSupabaseConfigured) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (error) {
-      console.warn("Usuário sem perfil ou erro de RLS:", error.message);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.warn("Perfil não encontrado ou erro de acesso:", error.message);
+        return null;
+      }
+      return data as UserProfile;
+    } catch (e) {
+      console.error("Erro ao buscar perfil:", e);
       return null;
     }
-    return data as UserProfile;
   }, []);
 
   const refreshProfile = async () => {
@@ -66,47 +75,81 @@ const App: React.FC = () => {
     setActiveTab('dashboard');
   };
 
-  useEffect(() => {
-    const initAuth = async () => {
-      if (!isSupabaseConfigured) { setLoading(false); return; }
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+  const initAuth = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    authTimeoutRef.current = setTimeout(() => {
+      setAuthError(true);
+    }, 8000);
+
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Erro na sessão Supabase:", sessionError);
+        return;
+      }
+
+      if (session?.user) {
         const profile = await fetchProfile(session.user.id);
         setUser({ ...session.user, profile });
       }
+    } catch (err) {
+      console.error("Falha crítica no InitAuth:", err);
+    } finally {
+      if (authTimeoutRef.current) clearTimeout(authTimeoutRef.current);
       setLoading(false);
-    };
+    }
+  }, [fetchProfile]);
+
+  useEffect(() => {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
+      if (session?.user) {
         const profile = await fetchProfile(session.user.id);
         setUser({ ...session.user, profile });
+        setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
+        setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+    return () => {
+      subscription.unsubscribe();
+      if (authTimeoutRef.current) clearTimeout(authTimeoutRef.current);
+    };
+  }, [initAuth, fetchProfile]);
 
   const profile = user?.profile as UserProfile;
   const isSubscriber = profile?.is_active_subscriber === true;
   const usageAmount = profile?.monthly_api_usage ?? 0;
   
-  // Acesso permitido se for assinante OU se ainda tiver saldo trial
   const hasTrialBalance = usageAmount < API_LIMIT_CONFIG.TRIAL_LIMIT_BRL;
   const canAccessAI = isSubscriber || hasTrialBalance;
-  
-  // Bloqueio por abuso de faturamento total (teto de custo Gemini)
   const usageLimitReached = usageAmount >= API_LIMIT_CONFIG.MONTHLY_LIMIT_BRL;
 
   if (loading) return (
     <div className="h-screen w-screen bg-[#050507] flex flex-col items-center justify-center gap-6 p-10">
       <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      <div className="text-center">
+      <div className="text-center animate-in fade-in duration-1000">
         <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.5em] animate-pulse">Autenticando Identidade Digital</p>
         <p className="text-[8px] text-zinc-600 uppercase tracking-widest mt-2">ConcursoMaster ELITE Edition v1.0</p>
+        {authError && (
+          <div className="mt-10 space-y-4 animate-in slide-in-from-bottom-4">
+             <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">A conexão está demorando mais que o esperado...</p>
+             <button 
+                onClick={() => window.location.reload()}
+                className="px-8 py-3 bg-blue-600/10 border border-blue-600/30 rounded-xl text-[10px] font-black uppercase text-blue-500 tracking-widest hover:bg-blue-600/20 transition-all active:scale-95"
+              >
+                🔄 Reiniciar Terminal
+              </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -114,19 +157,25 @@ const App: React.FC = () => {
   if (!user) return <AuthScreen theme={theme} onLoginSuccess={(u) => setUser(u)} />;
 
   const SubscriptionWall = () => (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-6 md:p-10 glass-card rounded-[3rem] border border-blue-600/30 animate-in zoom-in duration-500">
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-6 md:p-10 glass-card rounded-[3rem] border border-blue-600/30 animate-in zoom-in duration-500 shadow-[0_0_80px_rgba(37,99,235,0.1)]">
       <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center text-4xl mb-6 shadow-2xl">🚀</div>
-      <h2 className="text-2xl md:text-3xl font-black uppercase mb-4 tracking-tighter">Upgrade Necessário</h2>
-      <p className="text-zinc-500 text-[11px] md:text-xs font-bold mb-10 max-w-xs leading-relaxed">
-        Você explorou o limite do modo experimental. Ative o Plano Master para desbloquear questões, redações e mapas mentais ilimitados.
+      <h2 className="text-2xl md:text-3xl font-black uppercase mb-4 tracking-tighter">Limites do <span className="text-blue-600">Modo Trial</span> Atingidos</h2>
+      <p className="text-zinc-500 text-[11px] md:text-xs font-bold mb-8 max-w-xs leading-relaxed">
+        Você explorou o limite do modo experimental. Ative o Plano Master para desbloquear todas as ferramentas de IA de forma ilimitada.
       </p>
       
-      <div className="w-full max-w-sm space-y-4">
-        <a href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} target="_blank" className="block w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-600/30 transition-all active:scale-95">
-          REATIVAR ACESSO MASTER
+      <div className="w-full max-w-sm space-y-6">
+        <div className="bg-zinc-950 p-6 rounded-3xl border border-white/5 shadow-inner">
+           <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Assinatura Mensal Master</p>
+           <p className="text-3xl font-black text-white">R$ 47,00<span className="text-sm text-zinc-500 font-normal">/mês</span></p>
+        </div>
+        
+        <a href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} target="_blank" className="block w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-blue-600/30 transition-all active:scale-95">
+          ATIVAR ACESSO ILIMITADO
         </a>
+        
         <button onClick={refreshProfile} className="w-full text-[9px] font-black text-zinc-600 uppercase tracking-widest hover:text-blue-500 transition-all underline underline-offset-4">
-          Já paguei? Sincronizar Agora
+          Já sou assinante? Sincronizar Agora
         </button>
       </div>
     </div>
@@ -153,12 +202,15 @@ const App: React.FC = () => {
           ) : (
             <div className="relative">
               {!isSubscriber && activeTab !== 'dashboard' && (
-                <div className="mb-8 flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl animate-in slide-in-from-top-4">
-                  <span className="text-lg">💎</span>
-                  <div className="flex-1">
-                    <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest leading-none">Acesso Experimental Ativo</p>
-                    <p className="text-[10px] text-zinc-500 font-bold mt-1">Você pode testar esta ferramenta livremente até o limite trial.</p>
+                <div className="mb-6 bg-amber-600/10 border border-amber-600/20 p-4 rounded-2xl flex items-center justify-between animate-in slide-in-from-top-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">⏳</span>
+                    <div>
+                      <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest leading-none">Acesso Trial Ativado</p>
+                      <p className="text-[10px] text-zinc-500 font-bold mt-1">Uso: R$ {usageAmount.toFixed(2)} / R$ {API_LIMIT_CONFIG.TRIAL_LIMIT_BRL.toFixed(2)}</p>
+                    </div>
                   </div>
+                  <a href={KIWIFY_CONFIG.SUBSCRIPTION_LINK} target="_blank" className="text-[9px] font-black text-white bg-amber-600 px-4 py-2 rounded-xl uppercase tracking-widest shadow-lg shadow-amber-600/20">Upgrade</a>
                 </div>
               )}
 
