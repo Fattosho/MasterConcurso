@@ -59,10 +59,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
           password,
         });
         
-        // Se o erro for "User already registered", o usuário pode ter sido criado no Auth na tentativa anterior que deu erro no DB
         if (authError) {
           if (authError.message.includes("already registered")) {
-            setError("Este e-mail já está em uso. Tente fazer login ou use outro e-mail.");
+            setError("Este e-mail já está em uso. Tente fazer login.");
             setLoading(false);
             return;
           }
@@ -70,28 +69,30 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess, theme }) => {
         }
 
         if (data.user) {
-          // 2. Tentar salvar na tabela profiles
+          // 2. Salvar dados na tabela profiles usando UPSERT (mais seguro que insert direto)
           const { error: profileError } = await supabase
             .from('profiles')
-            .upsert([
-              { 
-                id: data.user.id, 
-                full_name: fullName, 
-                email: email, 
-                whatsapp: whatsapp 
-              }
-            ]);
+            .upsert({ 
+              id: data.user.id, 
+              full_name: fullName, 
+              email: email, 
+              whatsapp: whatsapp,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
           
           if (profileError) {
             console.error("Erro no DB:", profileError);
-            // Se der erro aqui, o usuário já existe no Auth. 
-            // Instruímos ele a tentar logar ou informamos o erro técnico.
-            throw new Error(`Conta criada, mas erro ao salvar perfil: ${profileError.message}. Tente fazer login.`);
+            throw new Error(`Perfil criado no Auth, mas falhou no DB: ${profileError.message}`);
           }
         }
 
-        alert("Cadastro realizado com sucesso! Agora você pode entrar.");
+        alert("REGISTRO DE ELITE CONCLUÍDO! Faça login para acessar o terminal.");
         setIsLogin(true);
+        // Limpar campos de registro
+        setFullName('');
+        setWhatsapp('');
+        setPassword('');
+        setConfirmPassword('');
       }
     } catch (err: any) {
       setError(err.message || "Ocorreu um erro na autenticação.");
